@@ -2,8 +2,8 @@
 
 초등학교 교실에서 쓰는 스도쿠 웹앱입니다. 같은 날에는 우리 반 학생 모두가 **똑같은 문제**를 1단계부터 10단계까지 풀고, 서로 몇 단계까지 왔는지 비교할 수 있습니다.
 
-- **웹으로 바로 열기:** https://jinsu10247974-stack.github.io/ai/sudoku/
-- **윈도우용 exe 내려받기:** [SudokuClassroom-v1.0.exe](https://github.com/jinsu10247974-stack/ai/releases/download/sudoku-v1.0.0/SudokuClassroom-v1.0.exe) (약 109MB)
+- **웹으로 바로 열기:** https://shushussam.github.io/ai/sudoku/
+- **윈도우용 exe 내려받기:** [SudokuClassroom-v1.0.exe](https://github.com/shushussam/ai/releases/download/sudoku-v1.0.0/SudokuClassroom-v1.0.exe) (약 109MB)
 
 ![스도쿠 퍼즐 교실 화면](docs/screenshot.png)
 

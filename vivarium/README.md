@@ -2,7 +2,7 @@
 
 초등 과학 '생태계' 수업에서 쓰는 3D 생태계 만들기 웹앱입니다. 유리통을 고르고 흙·물·빛을 채운 뒤 생산자·소비자·분해자를 넣어 나만의 비바리움을 꾸미고, 생태계 점수와 먹이 그물, 30일 동안의 변화를 관찰합니다.
 
-- **웹으로 바로 열기:** https://jinsu10247974-stack.github.io/ai/vivarium/
+- **웹으로 바로 열기:** https://shushussam.github.io/ai/vivarium/
 
 ![나만의 비바리움 화면](docs/screenshot.png)
 
