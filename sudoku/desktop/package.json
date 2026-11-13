@@ -1,0 +1,59 @@
+{
+  "name": "sudoku-classroom",
+  "productName": "SudokuClassroom",
+  "version": "1.0.0",
+  "description": "스도쿠 퍼즐 교실",
+  "author": "슈슈쌤",
+  "main": "main.js",
+  "private": true,
+  "scripts": {
+    "start": "python3 build-app.py && electron .",
+    "dist": "python3 build-app.py && electron-builder --win portable --x64"
+  },
+  "devDependencies": {
+    "@fontsource/jua": "5.3.0",
+    "@fontsource/noto-sans-kr": "5.3.1",
+    "electron": "44.10.0",
+    "electron-builder": "26.18.0",
+    "resedit": "3.1.0"
+  },
+  "build": {
+    "appId": "kr.sudoku.classroom",
+    "productName": "SudokuClassroom",
+    "copyright": "슈슈쌤",
+    "electronVersion": "44.10.0",
+    "directories": {
+      "output": "dist",
+      "buildResources": "build"
+    },
+    "files": [
+      "main.js",
+      "preload.js",
+      "app/**/*",
+      "package.json"
+    ],
+    "asar": true,
+    "afterPack": "scripts/afterPack.js",
+    "win": {
+      "target": [
+        {
+          "target": "portable",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "icon": "build/icon.ico",
+      "signAndEditExecutable": false
+    },
+    "portable": {
+      "artifactName": "SudokuClassroom-${version}-portable.exe",
+      "unicode": true
+    },
+    "compression": "maximum",
+    "electronLanguages": [
+      "ko",
+      "en-US"
+    ]
+  }
+}

@@ -1,0 +1,2342 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>스도쿠 퍼즐 교실</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Jua&family=Noto+Sans+KR:wght@400;500;700;900&display=swap" rel="stylesheet">
+<style>
+:root {
+  /* 레이아웃: 왼쪽은 퍼즐판, 오른쪽은 숫자 패드·도구 패널. 좁은 화면에서는 위아래로 쌓인다 */
+  --bg: #eef2f7;
+  --surface: #ffffff;
+  --ink: #1d2742;
+  --muted: #5d6a82;
+  --accent: #2563d9;      /* 학생이 쓴 숫자: 파란 연필 */
+  --mark: #ffcf33;        /* 선택한 칸: 형광펜 */
+  --on-accent: #ffffff;
+  --line: #cdd6e3;
+  --line-strong: #1d2742;
+  --given-bg: #e8edf5;
+  --given-peer: #dbe3ef;
+  --peer-bg: #f2f5fa;
+  --same-bg: #d9e5fc;
+  --sel-bg: #fff0b3;
+  --danger: #cf3535;
+  --danger-bg: #fde6e6;
+  --ok: #12805f;
+  --ok-bg: #dcf3ea;
+  --on-ok: #ffffff;
+  --hint: #7c45d0;
+  --warn: #b26a00;
+  --warn-bg: #fff3dc;
+  --font-display: 'Jua', 'Noto Sans KR', system-ui, sans-serif;
+  --font-body: 'Noto Sans KR', system-ui, -apple-system, 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif;
+  --radius: 14px;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0f1524; --surface: #182036; --ink: #e6ebf6; --muted: #9ba7c0;
+    --accent: #7ca8ff; --mark: #ffcf33; --on-accent: #0f1524;
+    --line: #2d3956; --line-strong: #b8c4dd;
+    --given-bg: #222c47; --given-peer: #2a3655; --peer-bg: #1d2640; --same-bg: #27386a; --sel-bg: #4b4118;
+    --danger: #ff8080; --danger-bg: #4a1f29; --ok: #4fd1a5; --ok-bg: #163a33; --on-ok: #0f1524; --hint: #c3a0ff; --warn: #f2b04f; --warn-bg: #3d2f14;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0f1524; --surface: #182036; --ink: #e6ebf6; --muted: #9ba7c0;
+  --accent: #7ca8ff; --mark: #ffcf33; --on-accent: #0f1524;
+  --line: #2d3956; --line-strong: #b8c4dd;
+  --given-bg: #222c47; --given-peer: #2a3655; --peer-bg: #1d2640; --same-bg: #27386a; --sel-bg: #4b4118;
+  --danger: #ff8080; --danger-bg: #4a1f29; --ok: #4fd1a5; --ok-bg: #163a33; --on-ok: #0f1524; --hint: #c3a0ff; --warn: #f2b04f; --warn-bg: #3d2f14;
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+html, body { height: 100%; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-body);
+  -webkit-font-smoothing: antialiased;
+  transition: background-color .25s, color .25s;
+}
+button, select, input { font: inherit; color: inherit; }
+:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+
+.app {
+  max-width: 1060px;
+  margin: 0 auto;
+  padding: 20px 16px 32px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+/* ---------- 머리글 ---------- */
+.topbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.brand { display: flex; align-items: center; gap: 12px; min-width: 0; }
+.logo { width: 42px; height: 42px; flex: none; color: var(--line-strong); }
+.brand h1 { font-family: var(--font-display); font-weight: 400; font-size: 32px; line-height: 1.1; margin: 0; text-wrap: balance; }
+.brand p { margin: 3px 0 0; color: var(--muted); font-size: 14.5px; }
+.top-actions { display: flex; gap: 8px; flex: none; }
+@media (max-width: 640px) {
+  .topbar { flex-wrap: nowrap; align-items: flex-start; }
+  .brand h1 { font-size: 28px; }
+  .top-actions .btn { padding: 10px; }
+  .top-label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+}
+
+/* ---------- 오늘 날짜 표지 ---------- */
+.today {
+  display: flex; flex-direction: column; justify-content: center;
+  padding: 6px 16px 8px; border-radius: 12px;
+  background: var(--mark); color: #1d2742; line-height: 1.15;
+  box-shadow: inset 0 -3px 0 rgba(29, 39, 66, .14);
+}
+.today-label { font-size: 12px; font-weight: 800; opacity: .75; }
+.today-date { font-family: var(--font-display); font-size: 25px; white-space: nowrap; }
+@media (max-width: 640px) {
+  .today { flex-direction: row; align-items: baseline; gap: 10px; width: 100%; }
+}
+
+/* ---------- 설정 줄 ---------- */
+.setup {
+  display: flex; flex-direction: column; gap: 12px;
+  background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius);
+  padding: 12px 14px 14px;
+}
+.setup-row { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 22px; }
+.field { display: flex; align-items: center; gap: 10px; }
+.field-label { font-size: 14px; font-weight: 700; color: var(--muted); }
+.seg { display: inline-flex; gap: 3px; padding: 3px; border-radius: 12px; background: var(--given-bg); }
+.seg button {
+  border: 0; background: transparent; padding: 8px 14px; border-radius: 9px;
+  font-weight: 700; font-size: 15px; cursor: pointer; color: var(--muted); min-width: 52px;
+  font-variant-numeric: tabular-nums;
+}
+.seg button:hover { color: var(--ink); }
+.seg button[aria-pressed="true"] { background: var(--surface); color: var(--ink); box-shadow: 0 1px 3px rgba(0,0,0,.14); }
+.setup-actions { display: flex; gap: 8px; margin-left: auto; }
+@media (max-width: 640px) {
+  .setup-actions { margin-left: 0; width: 100%; }
+  .setup-actions .btn { flex: 1; }
+}
+
+/* ---------- 버튼 ---------- */
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  padding: 10px 16px; border-radius: 10px; border: 1.5px solid var(--line);
+  background: var(--surface); color: var(--ink); font-weight: 700; font-size: 15px; cursor: pointer;
+  transition: transform .08s, border-color .15s, background-color .15s, filter .15s;
+}
+.btn svg { width: 18px; height: 18px; flex: none; }
+.btn:hover:not(:disabled) { border-color: var(--accent); }
+.btn:active:not(:disabled) { transform: translateY(1px); }
+.btn.primary { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
+.btn.primary:hover:not(:disabled) { filter: brightness(1.07); }
+.btn.ghost { background: transparent; }
+.btn:disabled { opacity: .45; cursor: not-allowed; }
+
+/* ---------- 게임 영역 ---------- */
+.play { display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: 24px; align-items: start; }
+@media (max-width: 860px) { .play { grid-template-columns: minmax(0, 1fr); gap: 16px; } }
+.board-col { display: flex; flex-direction: column; align-items: center; gap: 10px; min-width: 0; }
+.board-wrap { position: relative; width: min(100%, 620px, max(320px, calc(100vh - 340px))); }
+
+.board {
+  --n: 9; --cell: 60px;
+  display: grid;
+  grid-template-columns: repeat(var(--n), 1fr);
+  grid-template-rows: repeat(var(--n), 1fr);
+  aspect-ratio: 1 / 1;
+  width: 100%;
+  border: 3px solid var(--line-strong);
+  border-radius: 10px;
+  overflow: hidden;
+  background: var(--surface);
+  user-select: none;
+  -webkit-user-select: none;
+  touch-action: manipulation;
+}
+.board:focus, .board:focus-visible { outline: none; }
+.cell {
+  position: relative;
+  display: flex; align-items: center; justify-content: center;
+  border-right: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--accent);
+  font-size: calc(var(--cell) * .56);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+  cursor: pointer;
+  transition: background-color .12s;
+  min-width: 0; min-height: 0;
+}
+.cell.box-r { border-right: 2.5px solid var(--line-strong); }
+.cell.box-b { border-bottom: 2.5px solid var(--line-strong); }
+.cell.edge-r { border-right: 0; }
+.cell.edge-b { border-bottom: 0; }
+.cell.given { background: var(--given-bg); color: var(--ink); font-weight: 800; }
+.cell.peer { background: var(--peer-bg); }
+.cell.given.peer { background: var(--given-peer); }
+.cell.same { background: var(--same-bg); }
+.cell.hinted { color: var(--hint); }
+.cell.hinted::after {
+  content: ''; position: absolute; top: 8%; right: 8%;
+  width: calc(var(--cell) * .13); height: calc(var(--cell) * .13);
+  border-radius: 50%; background: var(--hint);
+}
+.cell.flash { animation: digit-done 1s ease-out; }
+@keyframes digit-done {
+  0% { background-color: var(--ok); color: var(--on-ok); }
+  45% { background-color: var(--ok); color: var(--on-ok); }
+}
+.cell.conflict { color: var(--danger); }
+.cell.incorrect { background: var(--danger-bg); color: var(--danger); }
+.cell.selected { background: var(--sel-bg); box-shadow: inset 0 0 0 3px var(--mark); }
+.cell.reveal-ok { background: var(--ok-bg); color: var(--ok); }
+.cell.reveal-fix { background: var(--danger-bg); color: var(--danger); }
+.cell .notes {
+  position: absolute; inset: 7%;
+  display: grid;
+  grid-template-columns: repeat(var(--nc), 1fr);
+  grid-template-rows: repeat(var(--nr), 1fr);
+  font-size: calc(var(--cell) * .2);
+  font-weight: 500;
+  color: var(--muted);
+}
+.cell .notes span { display: flex; align-items: center; justify-content: center; }
+.board.size-4 .cell .notes, .board.size-6 .cell .notes { font-size: calc(var(--cell) * .17); }
+
+.pause-cover {
+  position: absolute; inset: 0;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 16px;
+  background: var(--surface); border: 3px solid var(--line-strong); border-radius: 10px;
+}
+.pause-cover p { margin: 0; font-family: var(--font-display); font-size: 30px; }
+
+.status {
+  margin: 0; min-height: 2.2em; max-width: 100%;
+  display: flex; align-items: center; justify-content: center; text-align: center;
+  font-size: 15px; font-weight: 500; color: var(--muted);
+  padding: 6px 14px; border-radius: 999px;
+  transition: background-color .2s, color .2s;
+}
+.status[data-kind="ok"] { background: var(--ok-bg); color: var(--ok); font-weight: 700; }
+.status[data-kind="warn"] { background: var(--danger-bg); color: var(--danger); font-weight: 700; }
+.status[data-kind="note"] { background: var(--same-bg); color: var(--ink); }
+.peek-bar {
+  display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 10px 14px;
+  width: 100%; padding: 12px 14px; border-radius: 14px;
+  background: var(--same-bg); color: var(--ink); font-size: 14.5px; line-height: 1.5;
+}
+.peek-bar p { margin: 0; flex: 1 1 260px; }
+.peek-bar .ok-t { color: var(--ok); }
+.peek-bar .fix-t { color: var(--danger); }
+.peek-bar .btns { display: flex; gap: 8px; }
+
+/* ---------- 오른쪽 패널 ---------- */
+.panel {
+  display: flex; flex-direction: column; gap: 14px;
+  background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius);
+  padding: 16px;
+}
+.stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)) auto; gap: 8px; align-items: stretch; }
+.stat { position: relative; display: flex; flex-direction: column; gap: 1px; padding: 7px 8px; border-radius: 10px; background: var(--given-bg); min-width: 0; }
+.stat-label { font-size: 11.5px; color: var(--muted); font-weight: 700; white-space: nowrap; }
+.stat-value { font-size: 20px; font-weight: 800; font-variant-numeric: tabular-nums; }
+.stat .pen {
+  position: absolute; top: -8px; right: -6px;
+  padding: 1px 6px; border-radius: 999px;
+  background: var(--danger); color: #fff; font-size: 11px; font-weight: 800; white-space: nowrap;
+}
+.stat.bump { animation: bump .9s ease-out; }
+@keyframes bump { 0%, 40% { background-color: var(--danger-bg); } }
+.icon-btn {
+  width: 44px; border-radius: 10px; border: 1.5px solid var(--line); background: var(--surface);
+  display: grid; place-items: center; cursor: pointer; color: var(--ink);
+}
+.icon-btn svg { width: 20px; height: 20px; }
+.icon-btn:hover:not(:disabled) { border-color: var(--accent); }
+.icon-btn:disabled { opacity: .45; cursor: not-allowed; }
+
+.pad { --n: 9; display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.pad.pad-4 { grid-template-columns: repeat(2, 1fr); }
+.pad-btn {
+  min-height: 58px; border-radius: 12px; border: 1.5px solid var(--line); background: var(--surface);
+  cursor: pointer; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
+  transition: transform .08s, border-color .15s, background-color .15s;
+}
+.pad-btn:hover:not(:disabled) { border-color: var(--accent); background: var(--peer-bg); }
+.pad-btn:active:not(:disabled) { transform: scale(.96); }
+.pad-btn:disabled { opacity: .45; cursor: not-allowed; }
+.pad-num { font-family: var(--font-display); font-size: 30px; line-height: 1; color: var(--accent); }
+.pad-left { font-size: 11px; line-height: 1; color: var(--muted); font-weight: 700; font-variant-numeric: tabular-nums; }
+.pad.memo-on .pad-btn { border-style: dashed; }
+.pad.memo-on .pad-num { font-size: 22px; color: var(--muted); }
+.pad-btn { position: relative; }
+.pad-check { position: absolute; top: 5px; right: 5px; width: 16px; height: 16px; display: none; }
+.pad-btn.done { background: var(--ok); border-color: var(--ok); border-style: solid; }
+.pad-btn.done:hover:not(:disabled) { background: var(--ok); border-color: var(--ok); filter: brightness(1.07); }
+.pad-btn.done .pad-num, .pad-btn.done .pad-left, .pad-btn.done .pad-check { color: var(--on-ok); }
+.pad-btn.done .pad-check { display: block; }
+.pad-btn.over { border-color: var(--danger); border-style: solid; background: var(--danger-bg); }
+.pad-btn.over .pad-left { color: var(--danger); }
+@media (max-width: 860px) {
+  .pad, .pad.pad-4 { grid-template-columns: repeat(var(--n), minmax(0, 1fr)); gap: 6px; }
+  .pad-btn { min-height: 54px; }
+  .pad-num { font-size: 26px; }
+  .pad-left .unit { display: none; }
+  .pad-check { top: 3px; right: 3px; width: 12px; height: 12px; }
+}
+
+.tools { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; }
+.tool {
+  display: flex; flex-direction: column; align-items: center; gap: 4px;
+  padding: 8px 2px; border-radius: 10px; border: 1.5px solid var(--line); background: transparent;
+  cursor: pointer; font-size: 13px; font-weight: 700; color: var(--ink);
+}
+.tool svg { width: 22px; height: 22px; }
+.tool { position: relative; }
+.tool-badge {
+  position: absolute; top: -8px; right: -6px;
+  min-width: 20px; padding: 1px 6px; border-radius: 999px;
+  background: var(--accent); color: var(--on-accent);
+  font-size: 11px; font-weight: 800; line-height: 16px; white-space: nowrap;
+}
+.tool-badge.pen { background: var(--danger); color: #fff; }
+.tool:hover:not(:disabled) { border-color: var(--accent); }
+.tool[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
+.tool:disabled { opacity: .45; cursor: not-allowed; }
+
+.actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.actions .submit { grid-column: 1 / -1; background: var(--ok); border-color: var(--ok); color: var(--on-ok); padding: 12px 16px; font-size: 16px; }
+.actions .submit:hover:not(:disabled) { border-color: var(--ok); filter: brightness(1.07); }
+.actions .submit.ready { animation: ready-pulse 1.6s ease-in-out infinite; }
+@keyframes ready-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(18, 128, 95, .45); }
+  50% { box-shadow: 0 0 0 7px rgba(18, 128, 95, 0); }
+}
+
+
+/* ---------- 대화상자 ---------- */
+.modal-layer {
+  position: fixed; inset: 0; z-index: 50;
+  display: grid; place-items: center; padding: 16px;
+  background: rgba(12, 18, 32, .55);
+}
+#confetti { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+.dialog {
+  position: relative;
+  width: min(460px, 100%);
+  max-height: calc(100vh - 32px);
+  overflow: auto;
+  background: var(--surface); color: var(--ink);
+  border-radius: 18px; padding: 22px;
+  box-shadow: 0 24px 64px rgba(0, 0, 0, .3);
+  display: flex; flex-direction: column; gap: 12px;
+}
+.dialog h2 { margin: 0; font-size: 21px; text-wrap: balance; }
+.dialog p { margin: 0; line-height: 1.6; }
+.dialog-sub { color: var(--muted); font-size: 14.5px; }
+.dialog-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 6px; flex-wrap: wrap; }
+.form-rows { display: flex; flex-direction: column; gap: 10px; padding: 12px 14px; border-radius: 12px; background: var(--given-bg); }
+.form-rows label { display: flex; align-items: center; gap: 9px; font-size: 15px; cursor: pointer; }
+.form-rows input[type="checkbox"] { width: 18px; height: 18px; accent-color: var(--accent); }
+.form-rows select { padding: 6px 10px; border-radius: 8px; border: 1.5px solid var(--line); background: var(--surface); margin-left: auto; }
+.note { font-size: 13.5px; color: var(--muted); }
+.win { text-align: center; }
+.win-eyebrow { font-size: 14px; font-weight: 700; color: var(--muted); }
+.win h2 { font-family: var(--font-display); font-weight: 400; font-size: 46px; color: var(--accent); }
+.win-stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin: 0; }
+.win-stats div { background: var(--given-bg); border-radius: 10px; padding: 10px 6px; }
+.win-stats dt { font-size: 12px; color: var(--muted); font-weight: 700; }
+.win-stats dd { margin: 3px 0 0; font-size: 21px; font-weight: 800; font-variant-numeric: tabular-nums; }
+.win-best { font-size: 14.5px; font-weight: 700; color: var(--ok); }
+.win .dialog-actions { justify-content: center; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { transition: none !important; animation: none !important; }
+}
+
+/* ---------- 인쇄 (단독 실행 시 이 페이지에서 바로 인쇄) ---------- */
+#print-root { display: none; }
+@media print {
+  body.printing { background: #fff; }
+  body.printing > :not(#print-root) { display: none !important; }
+  body.printing #print-root { display: block; }
+}
+
+/* ---------- 오늘의 단계 ---------- */
+.stage-row {
+  display: flex; align-items: center; gap: 10px 20px;
+  padding-top: 12px; border-top: 1px solid var(--line);
+}
+.stage-info { flex: none; min-width: 0; }
+.stage-title { margin: 2px 0 0; display: flex; align-items: baseline; gap: 8px; font-weight: 400; white-space: nowrap; }
+.stage-mode { font-size: 15px; font-weight: 700; color: var(--ink); }
+.stage-title strong { font-family: var(--font-display); font-weight: 400; font-size: 34px; line-height: 1.05; color: var(--accent); }
+
+.stages { --prog: 0; list-style: none; margin: 0; padding: 0; flex: 1; min-width: 0; display: flex; position: relative; }
+.stages::before, .stages::after {
+  content: ''; position: absolute; top: 50%; left: 5%; height: 4px; margin-top: -2px; border-radius: 2px;
+}
+.stages::before { right: 5%; background: var(--line); }
+.stages::after { width: calc(90% * var(--prog)); background: var(--ok); transition: width .4s ease; }
+.stages li { flex: 1; display: flex; justify-content: center; position: relative; z-index: 1; }
+.stage-chip {
+  position: relative; width: 40px; height: 40px; padding: 0;
+  border-radius: 50%; border: 2px solid var(--line); background: var(--surface); color: var(--muted);
+  font-weight: 800; font-size: 15px; font-variant-numeric: tabular-nums;
+  display: grid; place-items: center; cursor: pointer; transition: transform .1s;
+}
+.stage-chip:hover:not(.locked) { transform: translateY(-2px); }
+.stage-chip.done { background: var(--ok); border-color: var(--ok); color: var(--on-ok); }
+.stage-chip.skipped { background: var(--warn-bg); border-color: var(--warn); border-style: dashed; color: var(--warn); }
+.stage-chip.current { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
+.stage-chip.locked { background: var(--given-bg); border-color: var(--given-bg); color: var(--muted); cursor: not-allowed; }
+.stage-chip.locked span { opacity: .55; }
+.stage-chip.viewing { box-shadow: 0 0 0 3px var(--surface), 0 0 0 6px var(--mark); }
+.stage-chip .tick {
+  position: absolute; right: -5px; bottom: -5px; width: 18px; height: 18px; border-radius: 50%;
+  background: var(--surface); color: var(--ok); border: 1.5px solid var(--ok); display: grid; place-items: center;
+}
+.stage-chip .tick svg { width: 11px; height: 11px; }
+
+.stage-count { flex: none; text-align: right; line-height: 1.1; font-size: 13px; font-weight: 700; color: var(--muted); white-space: nowrap; }
+.stage-count b { font-family: var(--font-display); font-weight: 400; font-size: 32px; color: var(--ok); margin-right: 2px; }
+.stage-count small { display: block; margin-top: 2px; font-size: 12px; color: var(--warn); }
+
+@media (max-width: 760px) {
+  .stage-row { flex-wrap: wrap; }
+  .stage-info { flex: 1; }
+  .stages { order: 3; flex-basis: 100%; padding: 4px 0; }
+  .stage-chip { width: 32px; height: 32px; font-size: 13px; }
+  .stage-chip .tick { width: 15px; height: 15px; right: -4px; bottom: -4px; }
+  .stage-chip .tick svg { width: 9px; height: 9px; }
+}
+@media (max-width: 400px) {
+  .stage-chip { width: 28px; height: 28px; font-size: 12px; }
+}
+
+/* ---------- 선생님 비밀번호 ---------- */
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.pw-form { display: flex; flex-direction: column; gap: 8px; }
+.pw-form input {
+  font-size: 26px; letter-spacing: .35em; text-align: center; padding: 12px;
+  border-radius: 12px; border: 2px solid var(--line); background: var(--given-bg); color: var(--ink);
+}
+.pw-form input:focus { outline: none; border-color: var(--accent); }
+.pw-form input::placeholder { letter-spacing: .04em; font-size: 19px; }
+.pw-error { min-height: 1.5em; color: var(--danger); font-weight: 700; font-size: 14px; text-align: center; }
+.pw-error.ok { color: var(--ok); }
+.t-guide {
+  display: flex; flex-direction: column; gap: 8px; padding: 14px 16px; border-radius: 12px;
+  background: var(--sel-bg); border: 1.5px solid var(--mark); color: var(--ink);
+}
+.t-guide-key { margin: 0; font-size: 15px; font-weight: 700; display: flex; align-items: baseline; gap: 8px; }
+.t-guide-key b { font-family: var(--font-display); font-weight: 400; font-size: 30px; letter-spacing: .14em; color: var(--accent); }
+.t-guide ol { margin: 0; padding-left: 20px; font-size: 14.5px; line-height: 1.75; }
+.t-warn { margin: 0; font-size: 13.5px; font-weight: 700; color: var(--danger); }
+.t-guide-state { margin: 0; padding-top: 10px; border-top: 1px dashed var(--line-strong); font-size: 14px; font-weight: 700; line-height: 1.6; }
+.t-reset { align-self: flex-start; padding: 7px 12px; font-size: 14px; }
+.t-reset.armed { border-color: var(--danger); color: var(--danger); }
+.t-paste { border: 1.5px dashed var(--line); border-radius: 12px; padding: 10px 14px; }
+.t-paste summary { cursor: pointer; font-weight: 700; font-size: 14px; color: var(--accent); }
+.t-paste[open] summary { margin-bottom: 10px; }
+.t-paste .note { margin-bottom: 8px; }
+.t-paste .pw-error { text-align: left; min-height: 0; margin-top: 6px; }
+.t-paste .pw-error:empty { display: none; }
+#t-panel { display: flex; flex-direction: column; gap: 10px; }
+.t-section { display: flex; flex-direction: column; gap: 10px; padding: 14px; border-radius: 12px; background: var(--given-bg); }
+.t-section h3 { margin: 0; font-size: 16px; }
+.t-section .pw-error { text-align: left; min-height: 0; }
+.t-section .pw-error:empty { display: none; }
+.t-section > .btn { align-self: flex-start; }
+.t-fields { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.t-fields label { display: flex; flex-direction: column; gap: 4px; min-width: 0; font-size: 13px; font-weight: 700; color: var(--muted); }
+.t-fields input { width: 100%; }
+.t-fields input, .link-row input {
+  min-width: 0; padding: 10px 12px; border-radius: 10px; border: 1.5px solid var(--line);
+  background: var(--surface); color: var(--ink); font-size: 16px;
+}
+.t-fields input:focus, .link-row input:focus { outline: none; border-color: var(--accent); }
+.link-row { display: flex; gap: 8px; }
+.link-row input { flex: 1; font-size: 13px; }
+@media (max-width: 480px) { .t-fields { grid-template-columns: 1fr; } }
+.shake { animation: shake .35s; }
+@keyframes shake { 20% { transform: translateX(-8px); } 40% { transform: translateX(8px); } 60% { transform: translateX(-5px); } 80% { transform: translateX(5px); } }
+
+/* ---------- 인쇄 설정 ---------- */
+fieldset.kind { border: 0; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
+.form-rows input[type="radio"] { width: 18px; height: 18px; accent-color: var(--accent); }
+.form-rows hr { border: 0; border-top: 1px solid var(--line); margin: 2px 0; width: 100%; }
+#pages-row.is-off { opacity: .45; }
+.actions .btn { white-space: nowrap; }
+#peek-btn.is-on svg { display: none; }
+</style>
+</head>
+<body>
+<div class="app">
+  <header class="topbar">
+    <div class="brand">
+      <svg class="logo" viewBox="0 0 42 42" aria-hidden="true">
+        <rect x="2" y="2" width="38" height="38" rx="7" style="fill: var(--surface)" stroke="currentColor" stroke-width="3"/>
+        <rect x="15" y="15" width="12" height="12" style="fill: var(--mark)"/>
+        <path d="M15 3.5v35M27 3.5v35M3.5 15h35M3.5 27h35" stroke="currentColor" stroke-width="1.6" opacity=".45"/>
+        <text x="21" y="24.6" text-anchor="middle" font-size="10" font-weight="800" font-family="Noto Sans KR, sans-serif" style="fill: var(--accent)">5</text>
+      </svg>
+      <div>
+        <h1>스도쿠 퍼즐</h1>
+        <p id="rule-line">가로줄·세로줄·굵은 선 상자마다 1부터 9까지 숫자가 한 번씩만 들어가요.</p>
+      </div>
+    </div>
+    <div class="top-actions">
+      <button type="button" id="teacher-btn" class="btn ghost">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="7.5" cy="15.5" r="4.5"/><path d="m10.7 12.3 9.8-9.8M17 5.8l2.7 2.7M14.2 8.6l2 2"/></svg>
+        <span class="top-label">선생님 설정</span>
+      </button>
+      <button type="button" id="theme-btn" class="btn ghost" aria-pressed="false">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path id="theme-icon" d="M20 14.5A8 8 0 0 1 9.5 4 8 8 0 1 0 20 14.5Z"/></svg>
+        <span id="theme-label" class="top-label">다크 모드</span>
+      </button>
+    </div>
+  </header>
+
+  <section class="setup" aria-label="퍼즐 설정과 오늘의 단계">
+    <div class="setup-row">
+      <div class="today" id="today-tile">
+        <span class="today-label">오늘의 문제</span>
+        <span class="today-date" id="today-date">오늘</span>
+      </div>
+      <div class="field">
+        <span class="field-label" id="size-label">크기</span>
+        <div class="seg" id="size-seg" role="group" aria-labelledby="size-label">
+          <button type="button" data-n="4" aria-pressed="false">4×4</button>
+          <button type="button" data-n="6" aria-pressed="false">6×6</button>
+          <button type="button" data-n="9" aria-pressed="true">9×9</button>
+        </div>
+      </div>
+      <div class="field">
+        <span class="field-label" id="diff-label">난이도</span>
+        <div class="seg" id="diff-seg" role="group" aria-labelledby="diff-label">
+          <button type="button" data-diff="easy" aria-pressed="false">하</button>
+          <button type="button" data-diff="medium" aria-pressed="true">중</button>
+          <button type="button" data-diff="hard" aria-pressed="false">상</button>
+        </div>
+      </div>
+      <div class="setup-actions">
+        <button type="button" id="restart-btn" class="btn">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 4v5h5"/></svg>
+          다시 시작
+        </button>
+        <button type="button" id="print-btn" class="btn">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9V3h12v6"/><rect x="3" y="9" width="18" height="8" rx="2"/><path d="M6 14h12v7H6z"/></svg>
+          문제지 인쇄
+        </button>
+      </div>
+    </div>
+
+    <div class="stage-row">
+      <div class="stage-info">
+        <h2 class="stage-title"><span class="stage-mode" id="stage-mode">9×9 · 중</span><strong id="stage-now">1단계</strong></h2>
+      </div>
+      <ol class="stages" id="stages" aria-label="1단계부터 10단계까지 진행 상황"></ol>
+      <div class="stage-count" aria-live="polite">
+        <b id="stage-cleared">0</b><span>/10 통과</span>
+        <small id="stage-skipped" hidden></small>
+      </div>
+    </div>
+  </section>
+
+  <main class="play">
+    <div class="board-col">
+      <div class="board-wrap">
+        <div id="board" class="board" role="group" tabindex="0" aria-label="스도쿠 퍼즐판"></div>
+        <div id="pause-cover" class="pause-cover" hidden>
+          <p>잠시 멈췄어요</p>
+          <button type="button" id="resume-btn" class="btn primary">계속 풀기</button>
+        </div>
+      </div>
+      <p id="status" class="status" role="status" aria-live="polite">칸을 누른 뒤 숫자를 골라 보세요.</p>
+      <div id="peek-bar" class="peek-bar" hidden>
+        <p>정답을 보는 동안 시간이 멈춰요. <b class="ok-t">초록 칸</b>은 맞게 쓴 칸, <b class="fix-t">빨간 칸</b>은 정답을 보여 주는 칸이에요.</p>
+        <div class="btns">
+          <button type="button" id="peek-resume" class="btn">계속 풀기</button>
+          <button type="button" id="peek-skip" class="btn primary">이 단계 건너뛰기</button>
+        </div>
+      </div>
+    </div>
+
+    <aside class="panel" aria-label="입력 도구">
+      <div class="stats">
+        <div class="stat" id="time-stat"><span class="stat-label">시간<span id="penalty" class="pen" hidden></span></span><span id="time" class="stat-value">00:00</span></div>
+        <div class="stat"><span class="stat-label">남은 칸</span><span id="left" class="stat-value">0</span></div>
+        <div class="stat"><span class="stat-label">남은 힌트</span><span id="hint-count" class="stat-value">5</span></div>
+        <button type="button" id="pause-btn" class="icon-btn" aria-label="일시정지">
+          <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path id="pause-icon" d="M6 5h4v14H6zM14 5h4v14h-4z"/></svg>
+        </button>
+      </div>
+
+      <div id="pad" class="pad" role="group" aria-label="숫자 입력"></div>
+
+      <div class="tools">
+        <button type="button" id="erase-btn" class="tool">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 21h11"/><path d="M5.6 13.4 13 6a2 2 0 0 1 2.9 0l3.1 3.1a2 2 0 0 1 0 2.9L11.5 19.5a2 2 0 0 1-1.4.5H8.5a2 2 0 0 1-1.4-.6l-1.5-1.5a2.1 2.1 0 0 1 0-3.5Z"/><path d="m9.5 9.5 5 5"/></svg>
+          <span>지우기</span>
+        </button>
+        <button type="button" id="memo-btn" class="tool" aria-pressed="false">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20h4L19 9a2.8 2.8 0 0 0-4-4L4 16v4Z"/><path d="m13.5 6.5 4 4"/></svg>
+          <span>메모</span>
+        </button>
+        <button type="button" id="undo-btn" class="tool">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/></svg>
+          <span>되돌리기</span>
+        </button>
+        <button type="button" id="hint-btn" class="tool">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 18h6"/><path d="M10 22h4"/><path d="M12 2a7 7 0 0 0-4 12.7c.6.5 1 1.3 1 2.3h6c0-1 .4-1.8 1-2.3A7 7 0 0 0 12 2Z"/></svg>
+          <span>힌트</span>
+          <span id="hint-badge" class="tool-badge" aria-hidden="true">5</span>
+        </button>
+      </div>
+
+      <div class="actions">
+        <button type="button" id="check-btn" class="btn">정답 확인</button>
+        <button type="button" id="peek-btn" class="btn">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>
+          <span id="peek-label">정답 보기</span>
+        </button>
+        <button type="button" id="submit-btn" class="btn submit">최종 제출</button>
+      </div>
+
+    </aside>
+  </main>
+</div>
+
+<div id="modal-layer" class="modal-layer" hidden>
+  <canvas id="confetti" aria-hidden="true"></canvas>
+
+  <div class="dialog" id="confirm-dialog" role="dialog" aria-modal="true" aria-labelledby="confirm-title" hidden>
+    <h2 id="confirm-title"></h2>
+    <p id="confirm-text" class="dialog-sub"></p>
+    <div class="dialog-actions">
+      <button type="button" id="confirm-cancel" class="btn">취소</button>
+      <button type="button" id="confirm-ok" class="btn primary" data-autofocus>확인</button>
+    </div>
+  </div>
+
+  <div class="dialog" id="pw-dialog" role="dialog" aria-modal="true" aria-labelledby="pw-title" hidden>
+    <h2 id="pw-title">선생님 확인</h2>
+    <p class="dialog-sub">정답 보기는 선생님 비밀번호를 넣어야 열려요.</p>
+    <form id="pw-form" class="pw-form" autocomplete="off">
+      <label for="pw-input" class="sr-only">선생님 비밀번호</label>
+      <input id="pw-input" type="password" inputmode="numeric" autocomplete="off" maxlength="12" placeholder="비밀번호" data-autofocus>
+      <p id="pw-error" class="pw-error" role="alert"></p>
+      <div class="dialog-actions">
+        <button type="button" id="pw-cancel" class="btn">취소</button>
+        <button type="submit" class="btn primary">확인</button>
+      </div>
+    </form>
+  </div>
+
+  <div class="dialog" id="teacher-dialog" role="dialog" aria-modal="true" aria-labelledby="teacher-title" hidden>
+    <h2 id="teacher-title">선생님 설정</h2>
+    <form id="t-auth" class="pw-form" autocomplete="off">
+      <p id="t-auth-sub" class="dialog-sub">선생님이 정한 비밀번호를 넣어 주세요.</p>
+      <div id="t-guide" class="t-guide">
+        <p class="t-guide-key">처음 비밀번호 <b>1234</b></p>
+        <ol>
+          <li>아래 칸에 <b>1234</b>를 넣고 <b>[확인]</b>을 눌러요.</li>
+          <li>선생님만 아는 <b>새 비밀번호</b>(숫자 4~8자리)를 두 번 넣고 저장해요.</li>
+          <li>새로 만들어진 <b>우리 반 링크</b>를 복사해 학생들에게 나눠 줘요.</li>
+        </ol>
+        <p id="t-guide-state" class="t-guide-state" hidden></p>
+        <button type="button" id="t-reset" class="btn t-reset" hidden>처음 비밀번호(1234)로 되돌리기</button>
+      </div>
+      <label for="t-current" class="sr-only">지금 비밀번호</label>
+      <input id="t-current" type="password" inputmode="numeric" autocomplete="off" maxlength="8" placeholder="지금 비밀번호" data-autofocus>
+      <p id="t-auth-error" class="pw-error" role="alert"></p>
+      <div class="dialog-actions">
+        <button type="button" class="btn" data-close>닫기</button>
+        <button type="submit" class="btn primary">확인</button>
+      </div>
+    </form>
+    <details id="t-paste" class="t-paste">
+      <summary>우리 반 링크로 비밀번호 적용하기</summary>
+      <p class="note">선생님이 만든 우리 반 링크를 붙여 넣으면 이 기기도 같은 비밀번호를 써요. exe로 쓰는 컴퓨터처럼 링크를 열 수 없는 곳에서 쓰세요.</p>
+      <div class="link-row">
+        <label for="t-paste-input" class="sr-only">우리 반 링크</label>
+        <input id="t-paste-input" type="text" placeholder="https://…#ban-…" autocomplete="off">
+        <button type="button" id="t-paste-btn" class="btn">적용</button>
+      </div>
+      <p id="t-paste-msg" class="pw-error" role="alert"></p>
+    </details>
+    <div id="t-panel" hidden>
+      <form id="t-change" class="t-section" autocomplete="off">
+        <h3>비밀번호 바꾸기</h3>
+        <p id="t-change-warn" class="t-warn" hidden>지금은 처음 비밀번호(1234)를 쓰고 있어요. 학생들도 알 수 있는 번호이니 선생님만 아는 숫자로 바꿔 주세요.</p>
+        <div class="t-fields">
+          <label for="t-new">새 비밀번호 (숫자 4~8자리)<input id="t-new" type="password" inputmode="numeric" autocomplete="new-password" maxlength="8"></label>
+          <label for="t-new2">한 번 더 입력<input id="t-new2" type="password" inputmode="numeric" autocomplete="new-password" maxlength="8"></label>
+        </div>
+        <p id="t-change-msg" class="pw-error" role="alert"></p>
+        <button type="submit" class="btn primary">새 비밀번호 저장</button>
+      </form>
+      <section class="t-section" aria-labelledby="t-link-title">
+        <h3 id="t-link-title">우리 반 링크</h3>
+        <p id="t-link-note" class="note"></p>
+        <div class="link-row" id="t-link-row">
+          <label for="t-link" class="sr-only">우리 반 링크</label>
+          <input id="t-link" type="text" readonly>
+          <button type="button" id="t-copy" class="btn">복사</button>
+        </div>
+      </section>
+      <div class="dialog-actions">
+        <button type="button" class="btn" data-close>닫기</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="dialog" id="print-dialog" role="dialog" aria-modal="true" aria-labelledby="print-title" hidden>
+    <h2 id="print-title">문제지·정답지 만들기</h2>
+    <p id="print-summary" class="dialog-sub"></p>
+    <div class="form-rows">
+      <fieldset class="kind">
+        <legend class="sr-only">문제 구성</legend>
+        <label for="pk-daily"><input type="radio" name="print-kind" id="pk-daily" value="daily" checked> 오늘의 단계 문제 (1~10단계)</label>
+        <label for="pk-practice"><input type="radio" name="print-kind" id="pk-practice" value="practice"> 새 연습 문제</label>
+      </fieldset>
+      <label for="print-pages" id="pages-row">연습 문제지 장 수
+        <select id="print-pages">
+          <option value="1">1장</option>
+          <option value="2">2장</option>
+          <option value="3">3장</option>
+          <option value="4">4장</option>
+          <option value="5">5장</option>
+        </select>
+      </label>
+      <hr>
+      <label for="print-info"><input type="checkbox" id="print-info" checked> 학년·반·번호·이름 칸 넣기</label>
+      <label for="print-answers"><input type="checkbox" id="print-answers" checked> 정답지 함께 만들기</label>
+    </div>
+    <p id="print-note" class="note"></p>
+    <div class="dialog-actions">
+      <button type="button" id="print-cancel" class="btn">취소</button>
+      <button type="button" id="print-go" class="btn primary" data-autofocus>인쇄하기</button>
+    </div>
+  </div>
+
+  <div class="dialog win" id="win-dialog" role="dialog" aria-modal="true" aria-labelledby="win-title" hidden>
+    <p class="win-eyebrow" id="win-meta"></p>
+    <h2 id="win-title">통과!</h2>
+    <dl class="win-stats">
+      <div><dt>걸린 시간</dt><dd id="win-time">00:00</dd></div>
+      <div><dt>힌트</dt><dd id="win-hints">0회</dd></div>
+      <div><dt>정답 보기</dt><dd id="win-peeks">0회</dd></div>
+    </dl>
+    <p id="win-pen" class="dialog-sub" hidden></p>
+    <p id="win-progress" class="win-best"></p>
+    <div class="dialog-actions">
+      <button type="button" id="win-close" class="btn">닫기</button>
+      <button type="button" id="win-next" class="btn primary" data-autofocus>다음 단계 도전</button>
+    </div>
+  </div>
+</div>
+
+<div id="print-root" aria-hidden="true"></div>
+<style id="print-style"></style>
+
+<script>
+/* ===== 스도쿠 생성·풀이 엔진 =====
+   - 같은 '씨앗(날짜·크기·난이도·단계)'이면 어느 기기에서든 똑같은 문제가 나온다.
+   - 모든 문제는 정답이 하나뿐이다. */
+const SudokuEngine = (() => {
+  // 크기별 굵은 상자 모양: 4×4 → 2행×2열, 6×6 → 2행×3열, 9×9 → 3행×3열
+  function boxDims(n) {
+    if (n === 4) return [2, 2];
+    if (n === 6) return [2, 3];
+    return [3, 3];
+  }
+
+  // 난이도별 빈칸 수 범위 [1단계, 10단계] — 단계가 오를수록 빈칸이 늘어난다
+  const BANDS = {
+    4: { easy: [4, 6], medium: [6, 8], hard: [8, 10] },
+    6: { easy: [10, 14], medium: [15, 19], hard: [20, 23] },
+    9: { easy: [30, 37], medium: [40, 47], hard: [50, 55] }
+  };
+  const STAGES = 10;
+
+  function stageTarget(n, diff, stage) {
+    const [lo, hi] = BANDS[n][diff] || BANDS[n].medium;
+    return Math.round(lo + (hi - lo) * (stage - 1) / (STAGES - 1));
+  }
+
+  // 문자열 → 고정 난수 (FNV-1a 해시 + mulberry32)
+  function makeRng(seedStr) {
+    let h = 2166136261;
+    for (let i = 0; i < seedStr.length; i++) {
+      h ^= seedStr.charCodeAt(i);
+      h = Math.imul(h, 16777619);
+    }
+    let a = h >>> 0;
+    return function () {
+      a = (a + 0x6D2B79F5) | 0;
+      let t = Math.imul(a ^ (a >>> 15), 1 | a);
+      t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+  }
+
+  const geoCache = {};
+  function geometry(n) {
+    if (geoCache[n]) return geoCache[n];
+    const [br, bc] = boxDims(n);
+    const N = n * n;
+    const row = new Array(N), col = new Array(N), box = new Array(N);
+    for (let i = 0; i < N; i++) {
+      row[i] = Math.floor(i / n);
+      col[i] = i % n;
+      box[i] = Math.floor(row[i] / br) * (n / bc) + Math.floor(col[i] / bc);
+    }
+    const peers = [];
+    for (let i = 0; i < N; i++) {
+      const p = [];
+      for (let j = 0; j < N; j++) {
+        if (j !== i && (row[j] === row[i] || col[j] === col[i] || box[j] === box[i])) p.push(j);
+      }
+      peers.push(p);
+    }
+    geoCache[n] = { n, N, br, bc, row, col, box, peers };
+    return geoCache[n];
+  }
+
+  function shuffle(a, rng) {
+    for (let i = a.length - 1; i > 0; i--) {
+      const j = Math.floor(rng() * (i + 1));
+      const t = a[i]; a[i] = a[j]; a[j] = t;
+    }
+    return a;
+  }
+
+  function popcount(m) {
+    let k = 0;
+    while (m) { m &= m - 1; k++; }
+    return k;
+  }
+
+  // 완성된 정답판을 무작위로 만든다
+  function fillGrid(n, rng) {
+    const G = geometry(n);
+    const g = new Array(G.N).fill(0);
+    const rows = new Array(n).fill(0), cols = new Array(n).fill(0), boxes = new Array(n).fill(0);
+    const digits = Array.from({ length: n }, (_, k) => k + 1);
+    function rec(i) {
+      if (i === G.N) return true;
+      const r = G.row[i], c = G.col[i], b = G.box[i];
+      const used = rows[r] | cols[c] | boxes[b];
+      for (const d of shuffle(digits.slice(), rng)) {
+        const bit = 1 << d;
+        if (used & bit) continue;
+        g[i] = d; rows[r] |= bit; cols[c] |= bit; boxes[b] |= bit;
+        if (rec(i + 1)) return true;
+        g[i] = 0; rows[r] ^= bit; cols[c] ^= bit; boxes[b] ^= bit;
+      }
+      return false;
+    }
+    rec(0);
+    return g;
+  }
+
+  // 해의 개수를 limit개까지만 센다 (유일해 판정용)
+  function countSolutions(cells, n, limit = 2) {
+    const G = geometry(n);
+    const g = cells.slice();
+    const rows = new Array(n).fill(0), cols = new Array(n).fill(0), boxes = new Array(n).fill(0);
+    for (let i = 0; i < G.N; i++) {
+      const v = g[i];
+      if (!v) continue;
+      const bit = 1 << v;
+      const r = G.row[i], c = G.col[i], b = G.box[i];
+      if ((rows[r] | cols[c] | boxes[b]) & bit) return 0;
+      rows[r] |= bit; cols[c] |= bit; boxes[b] |= bit;
+    }
+    const full = (1 << (n + 1)) - 2;
+    let count = 0;
+    function solve() {
+      let best = -1, bestMask = 0, bestK = 99;
+      for (let i = 0; i < G.N; i++) {
+        if (g[i]) continue;
+        const m = full & ~(rows[G.row[i]] | cols[G.col[i]] | boxes[G.box[i]]);
+        const k = popcount(m);
+        if (k === 0) return;
+        if (k < bestK) { best = i; bestMask = m; bestK = k; if (k === 1) break; }
+      }
+      if (best === -1) { count++; return; }
+      const r = G.row[best], c = G.col[best], b = G.box[best];
+      let m = bestMask;
+      while (m) {
+        const bit = m & -m;
+        m ^= bit;
+        g[best] = 31 - Math.clz32(bit);
+        rows[r] |= bit; cols[c] |= bit; boxes[b] |= bit;
+        solve();
+        rows[r] ^= bit; cols[c] ^= bit; boxes[b] ^= bit;
+        g[best] = 0;
+        if (count >= limit) return;
+      }
+    }
+    solve();
+    return count;
+  }
+
+  // 빈칸 target개짜리 유일해 문제 (목표에 못 미치면 같은 난수 흐름으로 다시 시도)
+  function generate(n, target, rng = Math.random, maxTries = 60) {
+    const G = geometry(n);
+    let best = null;
+    for (let t = 0; t < maxTries; t++) {
+      const solution = fillGrid(n, rng);
+      const puzzle = solution.slice();
+      const order = shuffle(Array.from({ length: G.N }, (_, i) => i), rng);
+      let removed = 0;
+      for (const i of order) {
+        if (removed >= target) break;
+        const keep = puzzle[i];
+        puzzle[i] = 0;
+        if (countSolutions(puzzle, n, 2) !== 1) puzzle[i] = keep;
+        else removed++;
+      }
+      if (!best || removed > best.removed) best = { puzzle, solution, removed };
+      if (removed >= target) break;
+    }
+    return { puzzle: best.puzzle, solution: best.solution };
+  }
+
+  // 오늘의 단계 문제: 날짜·크기·난이도·단계가 같으면 항상 같은 문제
+  const dailyCache = {};
+  function daily(day, n, diff, stage) {
+    const key = `${day}|${n}|${diff}|${stage}`;
+    if (!dailyCache[key]) {
+      dailyCache[key] = generate(n, stageTarget(n, diff, stage), makeRng(`sudoku-classroom|${key}`));
+    }
+    return dailyCache[key];
+  }
+
+  return { boxDims, geometry, generate, countSolutions, stageTarget, daily, makeRng, BANDS, STAGES };
+})();
+</script>
+<script>
+(() => {
+  'use strict';
+  const E = SudokuEngine;
+  const STAGES = E.STAGES;
+  const DIFF_LABEL = { easy: '하', medium: '중', hard: '상' };
+  const PER_PAGE = { 4: 6, 6: 4, 9: 2 };
+  const DAY_KEY = 'sudoku-classroom-daily-v1';
+  const PREF_KEY = 'sudoku-classroom-prefs-v1';
+  const FREE_HINTS = 5;          // 단계마다 무료 힌트 수
+  const PENALTY_MS = 5000;       // 무료 힌트를 다 쓴 뒤 힌트 1회당 더해지는 시간
+  const DEFAULT_PW = '1234';         // 처음 비밀번호 (선생님 설정 창에서 안내)
+  const DEFAULT_HASH = 'c2d3f110';   // 처음 비밀번호의 해시값
+  const CLASS_KEY = 'sudoku-classroom-class-v1';
+  const ARTIFACT_URL = 'https://claude.ai/artifact/BHFUPD9ziy6QGqzhT8h2jX';
+  const PAGES_URL = 'https://jinsu10247974-stack.github.io/ai/sudoku/';  // exe·파일로 열었을 때 우리 반 링크 주소
+  const ICON_PAUSE = 'M6 5h4v14H6zM14 5h4v14h-4z';
+  const ICON_PLAY = 'M7 5v14l12-7z';
+  const ICON_MOON = 'M20 14.5A8 8 0 0 1 9.5 4 8 8 0 1 0 20 14.5Z';
+  const ICON_SUN = 'M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8ZM12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4';
+  const TICK_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5 10 17.5 19 7"/></svg>';
+
+  // ----- 브라우저 저장소 (막혀 있어도 앱은 그대로 동작) -----
+  const store = {
+    get(k) { try { const s = localStorage.getItem(k); return s ? JSON.parse(s) : null; } catch (e) { return null; } },
+    set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) { /* 저장 불가 환경 */ } }
+  };
+
+  const $ = (id) => document.getElementById(id);
+  const els = {
+    board: $('board'), pad: $('pad'), status: $('status'), ruleLine: $('rule-line'),
+    time: $('time'), left: $('left'), hintCount: $('hint-count'),
+    pauseBtn: $('pause-btn'), pauseIcon: $('pause-icon'), pauseCover: $('pause-cover'), resumeBtn: $('resume-btn'),
+    eraseBtn: $('erase-btn'), memoBtn: $('memo-btn'), undoBtn: $('undo-btn'), hintBtn: $('hint-btn'),
+    checkBtn: $('check-btn'), peekBtn: $('peek-btn'), submitBtn: $('submit-btn'),
+    restartBtn: $('restart-btn'), printBtn: $('print-btn'), sizeSeg: $('size-seg'), diffSeg: $('diff-seg'),
+    stages: $('stages'), stageNow: $('stage-now'), stageMode: $('stage-mode'), todayDate: $('today-date'),
+    stageCleared: $('stage-cleared'), stageSkipped: $('stage-skipped'),
+    themeBtn: $('theme-btn'), themeIcon: $('theme-icon'), themeLabel: $('theme-label'),
+    layer: $('modal-layer'), confetti: $('confetti')
+  };
+
+  const prefs = Object.assign(
+    { theme: null, printKind: 'daily', printPages: 1, printInfo: true, printAnswers: true },
+    store.get(PREF_KEY) || {}
+  );
+  const savePrefs = () => store.set(PREF_KEY, prefs);
+
+  let S = null;          // 지금 화면의 단계 상태
+  let cells = [];
+  let padBtns = [];
+  let statusTimer = null;
+  let modalOpen = false;
+
+  // ================= 날짜 (한국 시간 기준) =================
+  function todayKey() {
+    try {
+      return new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Seoul', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
+    } catch (e) {
+      const d = new Date();
+      return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    }
+  }
+  function dayParts(day) { const [y, m, d] = day.split('-').map(Number); return { y, m, d }; }
+  function dayShort(day) { const { m, d } = dayParts(day); return `${m}월 ${d}일`; }
+  function dayLabel(day) {
+    const { y, m, d } = dayParts(day);
+    const w = '일월화수목금토'[new Date(Date.UTC(y, m - 1, d)).getUTCDay()];
+    return `${m}월 ${d}일 (${w})`;
+  }
+
+  // ================= 오늘의 진행 기록 =================
+  const okSel = (s) => !!s && [4, 6, 9].includes(s.n) && !!DIFF_LABEL[s.diff];
+  function freshDaily(sel) {
+    return { v: 1, day: todayKey(), sel: okSel(sel) ? { n: sel.n, diff: sel.diff } : { n: 9, diff: 'medium' }, tracks: {} };
+  }
+  function loadDaily() {
+    const d = store.get(DAY_KEY);
+    if (!d || d.v !== 1 || !d.tracks || typeof d.tracks !== 'object') return freshDaily(d && d.sel);
+    if (d.day !== todayKey()) return freshDaily(d.sel);   // 날짜가 바뀌면 새 문제, 새 기록
+    if (!okSel(d.sel)) d.sel = { n: 9, diff: 'medium' };
+    return d;
+  }
+  let daily = loadDaily();
+  const persist = () => store.set(DAY_KEY, daily);
+
+  function track(n, diff) {
+    const k = `${n}-${diff}`;
+    let t = daily.tracks[k];
+    if (!t || typeof t !== 'object') t = daily.tracks[k] = {};
+    if (!t.status || typeof t.status !== 'object') t.status = {};
+    if (!t.games || typeof t.games !== 'object') t.games = {};
+    return t;
+  }
+  function currentStage(t) {
+    for (let s = 1; s <= STAGES; s++) if (!t.status[s]) return s;
+    return STAGES + 1;
+  }
+  const countSt = (t, st) => Object.values(t.status).filter(x => x && x.st === st).length;
+
+  // ================= 단계 상태 =================
+  function makeState(n, diff, stage, puz, g, rec) {
+    const N = n * n;
+    return {
+      n, diff, stage,
+      puzzle: puz.puzzle.slice(),
+      solution: puz.solution.slice(),
+      values: rec ? puz.solution.slice() : (g ? g.values : puz.puzzle).slice(),
+      notes: g ? g.notes.slice() : new Array(N).fill(0),
+      hinted: new Set(g ? g.hinted : []),
+      hints: rec ? rec.hints || 0 : (g && g.hints) || 0,
+      penalty: (g && g.penalty) || 0,
+      peeks: rec ? rec.peeks || 0 : (g && g.peeks) || 0,
+      elapsed: (g && g.elapsed) || 0,
+      runStart: null,
+      solved: !!rec,
+      view: rec || null,      // 통과·건너뛴 단계를 다시 보는 중
+      selected: -1, memo: false, undo: [], incorrect: new Set(), peeking: false, paused: false
+    };
+  }
+
+  function validGame(g, puz, n) {
+    const N = n * n;
+    const okArr = (a, max) => Array.isArray(a) && a.length === N && a.every(x => Number.isInteger(x) && x >= 0 && x <= max);
+    if (!g || !okArr(g.values, n) || !okArr(g.notes, (1 << (n + 1)) - 1)) return false;
+    if (!puz.puzzle.every((v, i) => !v || g.values[i] === v)) return false;
+    if (!Array.isArray(g.hinted) || !g.hinted.every(i => Number.isInteger(i) && i >= 0 && i < N && g.values[i] === puz.solution[i])) return false;
+    return true;
+  }
+
+  function save() {
+    if (!S) return;
+    if (!S.view && !S.solved) {
+      track(S.n, S.diff).games[S.stage] = {
+        values: S.values, notes: S.notes, hinted: [...S.hinted],
+        hints: S.hints, penalty: S.penalty, peeks: S.peeks, elapsed: elapsedNow()
+      };
+    }
+    persist();
+  }
+
+  function openStage(n, diff, stage) {
+    if (S) { stopTimer(); save(); }
+    const t = track(n, diff);
+    stage = Math.max(1, Math.min(stage, currentStage(t), STAGES));
+    const puz = E.daily(daily.day, n, diff, stage);
+    const rec = t.status[stage] || null;
+    let g = null;
+    if (!rec) {
+      g = t.games[stage] || null;
+      if (g && !validGame(g, puz, n)) { g = null; delete t.games[stage]; }
+    }
+    daily.sel = { n, diff };
+    S = makeState(n, diff, stage, puz, g, rec);
+    buildBoard();
+    S.selected = S.view ? -1 : S.values.findIndex(v => v === 0);
+    syncSeg();
+    renderStages();
+    clearTimeout(statusTimer); statusTimer = null;
+    startTimer();
+    paint();
+    save();
+  }
+
+  // ================= 시간 =================
+  function elapsedNow() { return S ? S.elapsed + (S.runStart !== null ? Date.now() - S.runStart : 0) : 0; }
+  const totalNow = () => (S ? (S.view ? S.view.time : elapsedNow() + S.penalty) : 0);
+  function startTimer() {
+    if (S && !S.solved && !S.paused && !S.peeking && !modalOpen && S.runStart === null && !document.hidden) S.runStart = Date.now();
+  }
+  function stopTimer() {
+    if (S && S.runStart !== null) { S.elapsed += Date.now() - S.runStart; S.runStart = null; }
+  }
+  function fmt(ms) {
+    const s = Math.floor(ms / 1000);
+    const h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60), ss = s % 60;
+    const mm = String(m).padStart(2, '0'), sss = String(ss).padStart(2, '0');
+    return h ? `${h}:${mm}:${sss}` : `${mm}:${sss}`;
+  }
+  setInterval(() => { if (S) els.time.textContent = fmt(totalNow()); }, 250);
+  setInterval(() => { if (S && S.runStart !== null) save(); }, 5000);
+
+  // 날짜가 바뀌면 오늘의 새 문제로
+  function checkDay() {
+    if (todayKey() === daily.day) return;
+    if (modalOpen) closeDialog();
+    if (S) stopTimer();
+    daily = freshDaily(daily.sel);
+    S = null;
+    openStage(daily.sel.n, daily.sel.diff, 1);
+    say(`${dayLabel(daily.day)} 오늘의 새 문제가 나왔어요! 1단계부터 시작해요.`, 'ok', 7000);
+  }
+  setInterval(checkDay, 30000);
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden) { stopTimer(); save(); }
+    else { checkDay(); startTimer(); }
+  });
+
+  // ================= 퍼즐판 =================
+  function buildBoard() {
+    const n = S.n, G = E.geometry(n);
+    const [nr, nc] = n === 9 ? [3, 3] : n === 6 ? [2, 3] : [2, 2];
+    els.board.innerHTML = '';
+    els.board.className = `board size-${n}`;
+    els.board.style.setProperty('--n', n);
+    els.board.style.setProperty('--nr', nr);
+    els.board.style.setProperty('--nc', nc);
+    els.board.setAttribute('aria-label', `${n}×${n} 스도쿠 ${S.stage}단계 퍼즐판`);
+    cells = [];
+    for (let i = 0; i < G.N; i++) {
+      const r = G.row[i], c = G.col[i];
+      const el = document.createElement('div');
+      el.className = 'cell';
+      if (c === n - 1) el.classList.add('edge-r'); else if ((c + 1) % G.bc === 0) el.classList.add('box-r');
+      if (r === n - 1) el.classList.add('edge-b'); else if ((r + 1) % G.br === 0) el.classList.add('box-b');
+      el.dataset.i = i;
+      el.setAttribute('role', 'button');
+      const val = document.createElement('span');
+      val.className = 'val';
+      const notes = document.createElement('span');
+      notes.className = 'notes';
+      notes.setAttribute('aria-hidden', 'true');
+      const noteSpans = [];
+      for (let d = 1; d <= n; d++) {
+        const s = document.createElement('span');
+        s.textContent = d;
+        notes.appendChild(s);
+        noteSpans.push(s);
+      }
+      el.append(val, notes);
+      els.board.appendChild(el);
+      cells.push({ el, val, notes, noteSpans });
+    }
+    buildPad();
+    els.ruleLine.textContent = `가로줄·세로줄·굵은 선 상자마다 1부터 ${n}까지 숫자가 한 번씩만 들어가요.`;
+    sizeBoard();
+  }
+
+  function buildPad() {
+    const n = S.n;
+    els.pad.innerHTML = '';
+    els.pad.className = `pad pad-${n}`;
+    els.pad.style.setProperty('--n', n);
+    padBtns = [];
+    for (let d = 1; d <= n; d++) {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'pad-btn';
+      b.innerHTML = `<svg class="pad-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5 10 17.5 19 7"/></svg><span class="pad-num">${d}</span><span class="pad-left"></span>`;
+      b.addEventListener('click', () => inputDigit(d));
+      els.pad.appendChild(b);
+      padBtns.push(b);
+    }
+  }
+
+  function sizeBoard() {
+    if (!S) return;
+    const w = els.board.clientWidth;
+    if (w) els.board.style.setProperty('--cell', `${w / S.n}px`);
+  }
+  if ('ResizeObserver' in window) new ResizeObserver(sizeBoard).observe(els.board);
+  else window.addEventListener('resize', sizeBoard);
+
+  // ================= 단계 표시줄 =================
+  function renderStages() {
+    const t = track(S.n, S.diff);
+    const cur = currentStage(t);
+    els.stages.innerHTML = '';
+    for (let s = 1; s <= STAGES; s++) {
+      const rec = t.status[s];
+      const li = document.createElement('li');
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.dataset.stage = s;
+      let cls, what;
+      if (rec && rec.st === 'cleared') { cls = 'done'; what = `통과, ${fmt(rec.time)}`; }
+      else if (rec) { cls = 'skipped'; what = '건너뜀'; }
+      else if (s === cur) { cls = 'current'; what = '지금 풀 단계'; }
+      else { cls = 'locked'; what = '잠김'; }
+      b.className = `stage-chip ${cls}${s === S.stage ? ' viewing' : ''}`;
+      b.innerHTML = `<span>${s}</span>${cls === 'done' ? `<i class="tick">${TICK_SVG}</i>` : ''}`;
+      b.setAttribute('aria-label', `${s}단계, ${what}`);
+      b.title = `${s}단계 · ${what}`;
+      if (s === S.stage) b.setAttribute('aria-current', 'step');
+      li.appendChild(b);
+      els.stages.appendChild(li);
+    }
+    els.stages.style.setProperty('--prog', (Math.min(cur, STAGES) - 1) / (STAGES - 1));
+    els.stageNow.textContent = `${S.stage}단계`;
+    els.stageMode.textContent = `${S.n}×${S.n} · 난이도 ${DIFF_LABEL[S.diff]}`;
+    els.todayDate.textContent = dayLabel(daily.day);
+    els.stageCleared.textContent = countSt(t, 'cleared');
+    const sk = countSt(t, 'skipped');
+    els.stageSkipped.hidden = !sk;
+    els.stageSkipped.textContent = `건너뜀 ${sk}`;
+  }
+
+  els.stages.addEventListener('click', (e) => {
+    const b = e.target.closest('.stage-chip');
+    if (!b || !S) return;
+    const s = +b.dataset.stage;
+    if (s > currentStage(track(S.n, S.diff))) { say(`${s}단계는 앞 단계를 통과하면 열려요.`); return; }
+    if (s !== S.stage) openStage(S.n, S.diff, s);
+  });
+
+  // ================= 화면 그리기 =================
+  function paint() {
+    if (!S) return;
+    const n = S.n, G = E.geometry(n), sel = S.selected;
+    const peerSet = sel >= 0 ? new Set(G.peers[sel]) : null;
+    const shownAt = (i) => (S.peeking && S.puzzle[i] === 0 && !S.hinted.has(i)) ? S.solution[i] : S.values[i];
+    const selVal = sel >= 0 ? shownAt(sel) : 0;
+    const counts = new Array(n + 1).fill(0);
+    const dupDigit = new Array(n + 1).fill(false);
+    let empty = 0;
+
+    for (let i = 0; i < G.N; i++) {
+      const v = S.values[i];
+      if (v) counts[v]++; else empty++;
+      const c = cells[i], el = c.el;
+      const given = S.puzzle[i] !== 0;
+      let reveal = '';
+      if (S.peeking && !given && !S.hinted.has(i)) reveal = v === S.solution[i] ? 'reveal-ok' : 'reveal-fix';
+      const shown = shownAt(i);
+      let dup = false;
+      if (v) for (const j of G.peers[i]) if (S.values[j] === v) { dup = true; break; }
+      if (dup) dupDigit[v] = true;
+      el.classList.toggle('given', given);
+      el.classList.toggle('hinted', S.hinted.has(i));
+      el.classList.toggle('selected', i === sel);
+      el.classList.toggle('peer', !!peerSet && peerSet.has(i));
+      el.classList.toggle('same', !!selVal && i !== sel && shown === selVal);
+      el.classList.toggle('conflict', dup && !reveal);
+      el.classList.toggle('incorrect', !reveal && S.incorrect.has(i));
+      el.classList.toggle('reveal-ok', reveal === 'reveal-ok');
+      el.classList.toggle('reveal-fix', reveal === 'reveal-fix');
+      c.val.textContent = shown ? String(shown) : '';
+      const nm = shown ? 0 : S.notes[i];
+      c.notes.hidden = !nm;
+      if (nm) for (let d = 1; d <= n; d++) c.noteSpans[d - 1].style.visibility = (nm & (1 << d)) ? 'visible' : 'hidden';
+      el.setAttribute('aria-label', `${G.row[i] + 1}행 ${G.col[i] + 1}열, ${shown ? shown : '빈 칸'}${given ? ' (처음 숫자)' : ''}`);
+    }
+
+    const locked = S.solved || S.peeking || S.paused;
+    let doneMask = 0;
+    padBtns.forEach((b, k) => {
+      const d = k + 1, cnt = counts[d], left = n - cnt;
+      const done = cnt === n && !dupDigit[d];
+      const over = cnt > n || (cnt === n && dupDigit[d]);
+      if (done) doneMask |= (1 << d);
+      b.classList.toggle('done', done);
+      b.classList.toggle('over', over);
+      let label, aria;
+      if (done) { label = '완성'; aria = '모두 채움'; }
+      else if (cnt > n) { label = `${cnt - n}<span class="unit">개 많음</span>`; aria = `${cnt - n}개 많음`; }
+      else if (over) { label = '겹침'; aria = '겹친 숫자 있음'; }
+      else { label = `${left}<span class="unit">개 남음</span>`; aria = `${left}개 남음`; }
+      b.querySelector('.pad-left').innerHTML = label;
+      b.disabled = locked;
+      b.setAttribute('aria-label', `${d} ${S.memo ? '메모' : '입력'}, ${aria}`);
+    });
+    if (S.doneMask !== undefined && !S.peeking && !S.view) {
+      const fresh = doneMask & ~S.doneMask;
+      if (fresh) flashDigits(fresh);
+    }
+    S.doneMask = doneMask;
+
+    els.pad.classList.toggle('memo-on', S.memo);
+    els.left.textContent = empty;
+    const freeLeft = Math.max(0, FREE_HINTS - S.hints);
+    els.hintCount.textContent = freeLeft;
+    const badge = $('hint-badge');
+    badge.textContent = freeLeft ? String(freeLeft) : '+5초';
+    badge.classList.toggle('pen', !freeLeft);
+    els.hintBtn.setAttribute('aria-label', freeLeft ? `힌트, ${freeLeft}개 남음` : '힌트, 쓸 때마다 5초 추가');
+    const pen = $('penalty');
+    pen.hidden = !S.penalty || !!S.view;
+    pen.textContent = `+${S.penalty / 1000}초`;
+    els.time.textContent = fmt(totalNow());
+    els.memoBtn.setAttribute('aria-pressed', String(S.memo));
+    [els.eraseBtn, els.memoBtn, els.hintBtn, els.checkBtn, els.submitBtn].forEach(b => { b.disabled = locked; });
+    els.undoBtn.disabled = locked || S.undo.length === 0;
+    els.restartBtn.disabled = S.solved || S.peeking;
+    els.peekBtn.disabled = S.solved || S.paused;
+    $('peek-label').textContent = S.peeking ? '정답 숨기기' : '정답 보기';
+    els.peekBtn.classList.toggle('is-on', S.peeking);
+    els.pauseBtn.disabled = S.solved || S.peeking;
+    els.submitBtn.classList.toggle('ready', empty === 0 && !S.solved && !S.peeking);
+    els.pauseCover.hidden = !S.paused;
+    els.pauseIcon.setAttribute('d', S.paused ? ICON_PLAY : ICON_PAUSE);
+    els.pauseBtn.setAttribute('aria-label', S.paused ? '계속 풀기' : '일시정지');
+    $('peek-bar').hidden = !S.peeking;
+    $('peek-skip').textContent = S.stage < STAGES ? `${S.stage + 1}단계로 건너뛰기` : '이 단계 건너뛰기';
+    els.status.hidden = S.peeking;
+    if (!statusTimer) defaultStatus();
+  }
+
+  function flashDigits(mask) {
+    cells.forEach((c, i) => {
+      const v = S.values[i];
+      if (!v || !(mask & (1 << v))) return;
+      c.el.classList.remove('flash');
+      void c.el.offsetWidth;
+      c.el.classList.add('flash');
+      setTimeout(() => c.el.classList.remove('flash'), 1050);
+    });
+    if (!statusTimer) {
+      const ds = [];
+      for (let d = 1; d <= S.n; d++) if (mask & (1 << d)) ds.push(d);
+      say(`숫자 ${ds.join(', ')}${EUL[ds[ds.length - 1]]} 모두 채웠어요!`, 'ok', 2800);
+    }
+  }
+
+  // ================= 안내 문구 =================
+  function defaultStatus() {
+    if (!S) return;
+    let msg = '칸을 누른 뒤 숫자를 골라 보세요.';
+    let kind = '';
+    if (S.view) {
+      const cur = currentStage(track(S.n, S.diff));
+      const base = S.view.st === 'cleared'
+        ? `${S.stage}단계 통과 · 기록 ${fmt(S.view.time)} · 힌트 ${S.view.hints || 0}회`
+        : `${S.stage}단계는 건너뛴 단계예요`;
+      msg = cur <= STAGES ? `${base}. 지금 풀 단계는 ${cur}단계예요.` : `${base}. 오늘의 10단계를 모두 마쳤어요!`;
+      kind = S.view.st === 'cleared' ? 'ok' : 'note';
+    } else if (S.paused) msg = '일시정지 중이에요.';
+    else if (S.memo) { msg = '메모 모드: 빈 칸에 후보 숫자를 작게 적어요. 다시 누르면 지워져요.'; kind = 'note'; }
+    els.status.textContent = msg;
+    els.status.dataset.kind = kind;
+  }
+  function say(msg, kind = 'note', ms = 3600) {
+    els.status.textContent = msg;
+    els.status.dataset.kind = kind;
+    clearTimeout(statusTimer);
+    statusTimer = setTimeout(() => { statusTimer = null; defaultStatus(); }, ms);
+  }
+
+  // 숫자 뒤 조사
+  const EUL = { 1: '을', 2: '를', 3: '을', 4: '를', 5: '를', 6: '을', 7: '을', 8: '을', 9: '를' };
+  const RO = { 1: '로', 2: '로', 3: '으로', 4: '로', 5: '로', 6: '으로', 7: '로', 8: '로', 9: '로' };
+  const pos = (i) => `${Math.floor(i / S.n) + 1}행 ${i % S.n + 1}열`;
+
+  // ================= 입력 =================
+  const canEdit = () => S && !S.solved && !S.peeking && !S.paused && !modalOpen;
+  const isLocked = (i) => S.puzzle[i] !== 0 || S.hinted.has(i);
+
+  function select(i) {
+    if (!S || S.paused) return;
+    S.selected = i;
+    paint();
+  }
+
+  function pushUndo(idxs) {
+    S.undo.push(idxs.map(i => ({ i, v: S.values[i], notes: S.notes[i] })));
+    if (S.undo.length > 400) S.undo.shift();
+  }
+
+  function setValue(i, v, record = true) {
+    const G = E.geometry(S.n);
+    const affected = [i];
+    if (v) for (const j of G.peers[i]) if (S.notes[j] & (1 << v)) affected.push(j);
+    if (record) pushUndo(affected);
+    S.values[i] = v;
+    S.notes[i] = 0;
+    S.incorrect.delete(i);
+    if (v) for (const j of affected) if (j !== i) S.notes[j] &= ~(1 << v);
+  }
+
+  function afterChange() { paint(); save(); }
+
+  function viewNotice() {
+    if (S && S.view) say('다 푼 단계예요. 위의 단계 표시줄에서 지금 풀 단계를 눌러 주세요.');
+  }
+
+  function inputDigit(d) {
+    if (S && S.view) { viewNotice(); return; }
+    if (!canEdit() || d > S.n) return;
+    const i = S.selected;
+    if (i < 0) { say('먼저 숫자를 넣을 칸을 눌러 주세요.'); return; }
+    if (S.puzzle[i] !== 0) { say('처음부터 있던 숫자(회색 칸)는 바꿀 수 없어요.'); return; }
+    if (S.hinted.has(i)) { say('힌트로 채운 칸(보라색 점)은 정답이라 바꿀 수 없어요.'); return; }
+    if (S.memo) {
+      if (S.values[i]) { say('메모는 빈 칸에만 적을 수 있어요.'); return; }
+      pushUndo([i]);
+      S.notes[i] ^= (1 << d);
+    } else {
+      setValue(i, S.values[i] === d ? 0 : d);
+    }
+    afterChange();
+  }
+
+  function erase() {
+    if (!canEdit()) return;
+    const i = S.selected;
+    if (i < 0) { say('지울 칸을 먼저 눌러 주세요.'); return; }
+    if (S.puzzle[i] !== 0) { say('처음부터 있던 숫자(회색 칸)는 지울 수 없어요.'); return; }
+    if (S.hinted.has(i)) { say('힌트로 채운 칸(보라색 점)은 정답이라 지울 수 없어요.'); return; }
+    if (S.values[i]) setValue(i, 0);
+    else if (S.notes[i]) { pushUndo([i]); S.notes[i] = 0; }
+    else return;
+    afterChange();
+  }
+
+  function undo() {
+    if (!canEdit()) return;
+    const g = S.undo.pop();
+    if (!g) { say('되돌릴 내용이 없어요.'); return; }
+    let first = -1;
+    for (const s of g) {
+      if (isLocked(s.i)) continue;
+      S.values[s.i] = s.v;
+      S.notes[s.i] = s.notes;
+      S.incorrect.delete(s.i);
+      if (first < 0) first = s.i;
+    }
+    if (first >= 0) S.selected = first;
+    afterChange();
+  }
+
+  function toggleMemo() {
+    if (!canEdit()) return;
+    S.memo = !S.memo;
+    clearTimeout(statusTimer); statusTimer = null;
+    paint();
+  }
+
+  function candidatesAt(i) {
+    const G = E.geometry(S.n);
+    let used = 0;
+    for (const j of G.peers[i]) if (S.values[j]) used |= (1 << S.values[j]);
+    const out = [];
+    for (let d = 1; d <= S.n; d++) if (!(used & (1 << d))) out.push(d);
+    return out;
+  }
+
+  function giveHint() {
+    if (!canEdit()) return;
+    const needs = (k) => S.puzzle[k] === 0 && !S.hinted.has(k) && S.values[k] !== S.solution[k];
+    let i = S.selected;
+    if (i < 0 || !needs(i)) {
+      const all = [];
+      for (let k = 0; k < S.values.length; k++) if (needs(k)) all.push(k);
+      if (!all.length) { say('힌트가 필요한 칸이 없어요.'); return; }
+      const wrong = all.filter(k => S.values[k]);
+      if (wrong.length) i = wrong[Math.floor(Math.random() * wrong.length)];
+      else {
+        let best = Infinity, pool = [];
+        for (const k of all) {
+          const c = candidatesAt(k).length;
+          if (c < best) { best = c; pool = [k]; } else if (c === best) pool.push(k);
+        }
+        i = pool[Math.floor(Math.random() * pool.length)];
+      }
+    }
+    const v = S.solution[i];
+    const wasWrong = S.values[i] !== 0;
+    const single = !wasWrong && candidatesAt(i).length === 1;
+    setValue(i, v, false);
+    S.hinted.add(i);
+    S.hints++;
+    S.selected = i;
+    let msg;
+    if (wasWrong) msg = `${pos(i)}의 숫자를 ${v}${RO[v]} 고쳤어요.`;
+    else if (single) msg = `${pos(i)}에는 ${v}만 들어갈 수 있어요.`;
+    else msg = `${pos(i)}에 ${v}${EUL[v]} 넣었어요.`;
+    let kind = 'note';
+    if (S.hints > FREE_HINTS) {
+      S.penalty += PENALTY_MS;
+      msg += ' 추가 힌트라 시간이 5초 늘었어요.';
+      kind = 'warn';
+      const st = $('time-stat');
+      st.classList.remove('bump'); void st.offsetWidth; st.classList.add('bump');
+    } else if (S.hints === FREE_HINTS) {
+      msg += ' 무료 힌트를 모두 썼어요. 다음 힌트부터는 5초씩 더해져요.';
+    } else {
+      msg += ` (남은 힌트 ${FREE_HINTS - S.hints}개)`;
+    }
+    say(msg, kind, 5000);
+    afterChange();
+  }
+
+  function checkAnswers() {
+    if (!canEdit()) return;
+    S.incorrect.clear();
+    let wrong = 0, filled = 0;
+    for (let i = 0; i < S.values.length; i++) {
+      if (S.puzzle[i] !== 0 || S.hinted.has(i) || !S.values[i]) continue;
+      filled++;
+      if (S.values[i] !== S.solution[i]) { S.incorrect.add(i); wrong++; }
+    }
+    paint();
+    if (!filled) say('아직 입력한 숫자가 없어요.');
+    else if (wrong) say(`틀린 칸이 ${wrong}개 있어요. 빨간 칸을 다시 생각해 보세요.`, 'warn', 4500);
+    else say(`지금까지 입력한 ${filled}칸은 모두 맞아요!`, 'ok');
+  }
+
+  // ----- 정답 보기 (선생님 비밀번호) -----
+  function pwHash(s) {
+    let h = 0x811c9dc5;
+    const str = 'sudoku-classroom-teacher:' + s;
+    for (let r = 0; r < 3; r++) {
+      for (let i = 0; i < str.length; i++) { h ^= str.charCodeAt(i); h = Math.imul(h, 16777619); }
+      h ^= r;
+    }
+    return (h >>> 0).toString(16).padStart(8, '0');
+  }
+
+  // ----- 우리 반 비밀번호: 링크(#ban-해시)로 학생 기기에 전달되고, 기기에 저장된다 -----
+  const okCode = (c) => typeof c === 'string' && /^[0-9a-f]{8}$/.test(c);
+  let classCode = null, classSrc = null;
+  (() => {
+    const c = store.get(CLASS_KEY);
+    if (okCode(c)) { classCode = c; classSrc = 'set'; }              // 이전 버전 저장 형식
+    else if (c && okCode(c.code)) { classCode = c.code; classSrc = c.src === 'link' ? 'link' : 'set'; }
+  })();
+  const saveClass = () => store.set(CLASS_KEY, classCode ? { code: classCode, src: classSrc } : null);
+  function readClassHash() {
+    const m = /^#ban-([0-9a-f]{8})$/.exec(location.hash || '');
+    if (m && m[1] !== classCode) { classCode = m[1]; classSrc = 'link'; saveClass(); return true; }
+    return false;
+  }
+  readClassHash();
+  window.addEventListener('hashchange', () => { if (readClassHash()) say('우리 반 비밀번호가 이 기기에 적용됐어요.', 'ok'); });
+  const checkPw = (v) => pwHash(String(v).trim()) === (classCode || DEFAULT_HASH);
+  function classLink() {
+    const base = inHost() ? ARTIFACT_URL
+      : (/^https?:$/.test(location.protocol) ? location.origin + location.pathname : PAGES_URL);
+    return classCode ? `${base}#ban-${classCode}` : base;
+  }
+
+  function requestPeek() {
+    if (!S || S.solved || S.paused || modalOpen) return;
+    if (S.peeking) { endPeek(); return; }
+    if (!canEdit()) return;
+    $('pw-input').value = '';
+    $('pw-error').textContent = '';
+    openDialog('pw-dialog');
+  }
+  $('pw-form').addEventListener('submit', (e) => {
+    e.preventDefault();
+    const input = $('pw-input');
+    if (checkPw(input.value)) {
+      closeDialog();
+      startPeek();
+    } else {
+      $('pw-error').textContent = '비밀번호가 맞지 않아요.';
+      input.value = '';
+      shake(input);
+      input.focus();
+    }
+  });
+  $('pw-cancel').addEventListener('click', closeDialog);
+
+  function shake(el) { el.classList.remove('shake'); void el.offsetWidth; el.classList.add('shake'); }
+
+  function openTeacher() {
+    if (!S || modalOpen) return;
+    $('t-auth').hidden = false;
+    $('t-panel').hidden = true;
+    $('t-paste').hidden = false;
+    $('t-paste').open = false;
+    $('t-paste-input').value = '';
+    $('t-paste-msg').textContent = '';
+    renderTeacherAuth();
+    $('t-auth-error').textContent = '';
+    $('t-auth-error').classList.remove('ok');
+    openDialog('teacher-dialog');
+  }
+  let resetArmed = false;
+  function renderTeacherAuth() {
+    const isDefault = !classCode;
+    const state = $('t-guide-state'), reset = $('t-reset');
+    resetArmed = false;
+    reset.classList.remove('armed');
+    reset.textContent = `처음 비밀번호(${DEFAULT_PW})로 되돌리기`;
+    $('t-auth-sub').textContent = isDefault
+      ? '아직 비밀번호를 정하지 않았어요. 아래 순서대로 선생님만의 비밀번호를 만들어 주세요.'
+      : '이 기기에는 이미 새 비밀번호가 정해져 있어요.';
+    state.hidden = isDefault;
+    reset.hidden = isDefault || classSrc !== 'set';
+    if (!isDefault) {
+      state.textContent = classSrc === 'set'
+        ? `이 기기에서 이미 새 비밀번호를 만들어서 ${DEFAULT_PW}로는 열리지 않아요. 선생님이 만든 비밀번호를 넣어 주세요. 기억나지 않으면 아래 버튼으로 ${DEFAULT_PW}로 되돌린 뒤 다시 만들 수 있어요.`
+        : `이 기기에는 우리 반 링크로 선생님 비밀번호가 적용되어 있어서 ${DEFAULT_PW}로는 열리지 않아요. 선생님이 정한 비밀번호를 넣어 주세요.`;
+    }
+    $('t-current').placeholder = isDefault ? `${DEFAULT_PW} 입력` : '비밀번호 입력';
+    $('t-current').value = '';
+  }
+  function renderClassLink() {
+    const row = $('t-link-row');
+    row.hidden = !classCode;
+    $('t-link').value = classLink();
+    $('t-copy').textContent = '복사';
+    $('t-link-note').textContent = classCode
+      ? '학생들에게 이 링크를 나눠 주세요. 이 링크로 한 번 들어온 기기는 정답 보기에 선생님이 정한 비밀번호를 써요. exe로 쓰는 컴퓨터는 [선생님 설정] → \'우리 반 링크로 비밀번호 적용하기\'에 이 링크를 붙여 넣으면 돼요. 비밀번호를 다시 바꾸면 링크도 바뀌니 새 링크를 다시 나눠 주세요.'
+      : `아직 처음 비밀번호(${DEFAULT_PW})를 쓰고 있어요. 위에서 새 비밀번호를 저장하면 우리 반 링크가 만들어져요.`;
+  }
+  $('t-auth').addEventListener('submit', (e) => {
+    e.preventDefault();
+    const input = $('t-current');
+    if (checkPw(input.value)) {
+      $('t-auth').hidden = true;
+      $('t-paste').hidden = true;
+      $('t-panel').hidden = false;
+      $('t-new').value = ''; $('t-new2').value = '';
+      $('t-change-msg').textContent = '';
+      $('t-change-msg').classList.remove('ok');
+      $('t-change-warn').hidden = !!classCode;
+      renderClassLink();
+      $('t-new').focus();
+    } else {
+      $('t-auth-error').classList.remove('ok');
+      $('t-auth-error').textContent = '비밀번호가 맞지 않아요.';
+      input.value = '';
+      shake(input);
+      input.focus();
+    }
+  });
+  $('t-change').addEventListener('submit', (e) => {
+    e.preventDefault();
+    const v1 = $('t-new').value.trim(), v2 = $('t-new2').value.trim();
+    const msg = $('t-change-msg');
+    msg.classList.remove('ok');
+    if (!/^\d{4,8}$/.test(v1)) { msg.textContent = '새 비밀번호는 숫자 4~8자리로 정해 주세요.'; shake($('t-new')); return; }
+    if (v1 === DEFAULT_PW) { msg.textContent = `처음 비밀번호(${DEFAULT_PW})와 다른 숫자로 정해 주세요.`; shake($('t-new')); return; }
+    if (v1 !== v2) { msg.textContent = '두 번 입력한 비밀번호가 서로 달라요.'; shake($('t-new2')); return; }
+    classCode = pwHash(v1);
+    classSrc = 'set';
+    saveClass();
+    try { location.hash = `ban-${classCode}`; } catch (err) { /* 주소를 바꿀 수 없는 환경 */ }
+    $('t-new').value = ''; $('t-new2').value = '';
+    msg.textContent = '새 비밀번호를 저장했어요. 아래 우리 반 링크를 학생들에게 나눠 주세요.';
+    msg.classList.add('ok');
+    $('t-change-warn').hidden = true;
+    renderClassLink();
+  });
+  $('t-copy').addEventListener('click', async () => {
+    const input = $('t-link');
+    try {
+      await navigator.clipboard.writeText(input.value);
+      $('t-copy').textContent = '복사됨';
+    } catch (err) {
+      input.focus();
+      input.select();
+      $('t-copy').textContent = 'Ctrl+C로 복사';
+    }
+  });
+  $('t-link').addEventListener('focus', () => $('t-link').select());
+  function applyPastedLink() {
+    const msg = $('t-paste-msg');
+    const m = /ban-([0-9a-f]{8})/i.exec($('t-paste-input').value || '');
+    msg.classList.remove('ok');
+    if (!m) {
+      msg.textContent = '링크에서 우리 반 정보를 찾지 못했어요. 선생님 설정에서 복사한 링크를 그대로 붙여 넣어 주세요.';
+      shake($('t-paste-input'));
+      return;
+    }
+    classCode = m[1].toLowerCase();
+    classSrc = 'link';
+    saveClass();
+    renderTeacherAuth();
+    $('t-paste-input').value = '';
+    msg.classList.add('ok');
+    msg.textContent = '우리 반 비밀번호를 이 기기에 적용했어요. 이제 선생님이 정한 비밀번호로만 정답을 볼 수 있어요.';
+  }
+  $('t-paste-btn').addEventListener('click', applyPastedLink);
+  $('t-paste-input').addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); applyPastedLink(); } });
+  $('t-reset').addEventListener('click', () => {
+    const btn = $('t-reset');
+    if (!resetArmed) {
+      resetArmed = true;
+      btn.classList.add('armed');
+      btn.textContent = `한 번 더 누르면 ${DEFAULT_PW}로 되돌려요`;
+      return;
+    }
+    classCode = null;
+    classSrc = null;
+    saveClass();
+    try { if (/^#ban-/.test(location.hash)) location.hash = ''; } catch (err) { /* 주소를 바꿀 수 없는 환경 */ }
+    renderTeacherAuth();
+    const msg = $('t-auth-error');
+    msg.classList.add('ok');
+    msg.textContent = `${DEFAULT_PW}로 되돌렸어요. ${DEFAULT_PW}를 넣고 새 비밀번호를 다시 만들어 주세요.`;
+    $('t-current').focus();
+  });
+  $('teacher-dialog').querySelectorAll('[data-close]').forEach(b => b.addEventListener('click', closeDialog));
+  $('teacher-btn').addEventListener('click', openTeacher);
+
+  function startPeek() {
+    if (!canEdit()) return;
+    S.peeking = true;
+    S.peeks++;
+    S.memo = false;
+    stopTimer();
+    clearTimeout(statusTimer); statusTimer = null;
+    paint();
+    save();
+  }
+  function endPeek() {
+    if (!S || !S.peeking) return;
+    S.peeking = false;
+    startTimer();
+    paint();
+    save();
+    els.board.focus({ preventScroll: true });
+  }
+
+  async function skipStage() {
+    if (!S || !S.peeking) return;
+    const next = S.stage + 1;
+    const ok = await confirmDialog(
+      `${S.stage}단계를 건너뛸까요?`,
+      next <= STAGES ? `이 단계는 '건너뜀'으로 표시되고 ${next}단계가 열려요.` : `이 단계는 '건너뜀'으로 표시돼요.`,
+      '건너뛰기', '취소'
+    );
+    if (!ok || !S.peeking) return;
+    stopTimer();
+    const t = track(S.n, S.diff);
+    t.status[S.stage] = { st: 'skipped', time: elapsedNow() + S.penalty, hints: S.hints, peeks: S.peeks };
+    delete t.games[S.stage];
+    S.peeking = false;
+    S.solved = true;
+    persist();
+    const n = S.n, diff = S.diff;
+    openStage(n, diff, Math.min(next, STAGES));
+    say(next <= STAGES ? `${next}단계를 시작해요.` : '오늘의 10단계를 모두 마쳤어요.', 'note');
+  }
+
+  function submit() {
+    if (!canEdit()) return;
+    const empty = S.values.filter(v => !v).length;
+    if (empty) { say(`아직 빈 칸이 ${empty}개 남았어요. 모두 채운 뒤 제출해 주세요.`, 'warn'); return; }
+    S.incorrect.clear();
+    let wrong = 0;
+    for (let i = 0; i < S.values.length; i++) if (S.values[i] !== S.solution[i]) { S.incorrect.add(i); wrong++; }
+    if (wrong) { paint(); say(`틀린 칸이 ${wrong}개 있어요. 빨간 칸을 확인해 보세요!`, 'warn', 4500); return; }
+    stopTimer();
+    const time = elapsedNow() + S.penalty;
+    const t = track(S.n, S.diff);
+    t.status[S.stage] = { st: 'cleared', time, hints: S.hints, peeks: S.peeks };
+    delete t.games[S.stage];
+    S.solved = true;
+    S.view = t.status[S.stage];
+    S.selected = -1;
+    S.memo = false;
+    clearTimeout(statusTimer); statusTimer = null;
+    persist();
+    renderStages();
+    paint();
+    showWin();
+  }
+
+  async function restartStage() {
+    if (!S || S.solved || S.peeking || modalOpen) return;
+    const has = S.values.some((v, i) => v && S.puzzle[i] === 0 && !S.hinted.has(i)) || S.notes.some(x => x);
+    if (!has) { say('아직 지울 내용이 없어요.'); return; }
+    const ok = await confirmDialog(
+      `${S.stage}단계를 처음부터 다시 풀까요?`,
+      '입력한 숫자와 메모를 모두 지워요. 걸린 시간과 힌트 사용 횟수는 그대로예요.',
+      '다시 시작', '취소'
+    );
+    if (!ok) return;
+    for (let i = 0; i < S.values.length; i++) if (S.puzzle[i] === 0 && !S.hinted.has(i)) S.values[i] = 0;
+    S.notes.fill(0);
+    S.incorrect.clear();
+    S.undo = [];
+    S.selected = S.values.findIndex(v => v === 0);
+    afterChange();
+    say('처음 상태로 돌렸어요.');
+  }
+
+  function setPaused(p) {
+    if (!S || S.solved || S.peeking) return;
+    S.paused = p;
+    if (p) stopTimer(); else startTimer();
+    clearTimeout(statusTimer); statusTimer = null;
+    paint();
+    if (!p) els.board.focus({ preventScroll: true });
+  }
+
+  function move(dr, dc) {
+    const n = S.n;
+    if (S.selected < 0) { select(0); return; }
+    const r = (Math.floor(S.selected / n) + dr + n) % n;
+    const c = (S.selected % n + dc + n) % n;
+    select(r * n + c);
+  }
+
+  function syncSeg() {
+    els.sizeSeg.querySelectorAll('button').forEach(b => b.setAttribute('aria-pressed', String(+b.dataset.n === S.n)));
+    els.diffSeg.querySelectorAll('button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.diff === S.diff)));
+  }
+
+  function switchTrack(n, diff) {
+    const t = track(n, diff);
+    openStage(n, diff, Math.min(currentStage(t), STAGES));
+    const cur = currentStage(t);
+    say(cur <= STAGES
+      ? `${n}×${n} · 난이도 ${DIFF_LABEL[diff]} — 오늘 ${cur}단계를 풀 차례예요.`
+      : `${n}×${n} · 난이도 ${DIFF_LABEL[diff]} — 오늘의 10단계를 모두 마쳤어요!`, 'note', 4500);
+  }
+
+  // ================= 대화상자 =================
+  let lastFocus = null;
+  let onCancel = null;
+
+  function openDialog(id, cancelFn) {
+    stopTimer();
+    modalOpen = true;
+    onCancel = cancelFn || null;
+    lastFocus = document.activeElement;
+    els.layer.hidden = false;
+    els.layer.querySelectorAll('.dialog').forEach(d => { d.hidden = d.id !== id; });
+    const dlg = $(id);
+    const f = [...dlg.querySelectorAll('[data-autofocus]')].find(x => !x.hidden)
+      || [...dlg.querySelectorAll('button')].find(x => !x.hidden);
+    if (f) f.focus();
+  }
+
+  function closeDialog() {
+    els.layer.hidden = true;
+    modalOpen = false;
+    onCancel = null;
+    stopConfetti();
+    startTimer();
+    if (lastFocus && document.contains(lastFocus)) lastFocus.focus({ preventScroll: true });
+  }
+
+  function cancelDialog() {
+    const fn = onCancel;
+    closeDialog();
+    if (fn) fn();
+  }
+
+  els.layer.addEventListener('click', (e) => { if (e.target === els.layer || e.target === els.confetti) cancelDialog(); });
+
+  function confirmDialog(title, text, okText, cancelText) {
+    return new Promise((resolve) => {
+      $('confirm-title').textContent = title;
+      $('confirm-text').textContent = text;
+      $('confirm-ok').textContent = okText || '확인';
+      $('confirm-cancel').textContent = cancelText || '취소';
+      const finish = (v) => { $('confirm-ok').onclick = null; $('confirm-cancel').onclick = null; closeDialog(); resolve(v); };
+      $('confirm-ok').onclick = () => finish(true);
+      $('confirm-cancel').onclick = () => finish(false);
+      openDialog('confirm-dialog', () => resolve(false));
+    });
+  }
+
+  els.layer.addEventListener('keydown', (e) => {
+    if (e.key !== 'Tab') return;
+    const dlg = [...els.layer.querySelectorAll('.dialog')].find(d => !d.hidden);
+    if (!dlg) return;
+    const items = [...dlg.querySelectorAll('button, select, input')].filter(x => !x.disabled && !x.hidden && x.offsetParent !== null);
+    if (!items.length) return;
+    const first = items[0], last = items[items.length - 1];
+    if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+    else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+  });
+
+  // ================= 단계 통과 =================
+  function showWin() {
+    const rec = S.view;
+    const t = track(S.n, S.diff);
+    const next = currentStage(t);
+    $('win-meta').textContent = `${dayShort(daily.day)} · ${S.n}×${S.n} · 난이도 ${DIFF_LABEL[S.diff]}`;
+    $('win-title').textContent = `${S.stage}단계 통과!`;
+    $('win-time').textContent = fmt(rec.time);
+    $('win-hints').textContent = `${S.hints}회`;
+    $('win-peeks').textContent = `${S.peeks}회`;
+    const wp = $('win-pen');
+    wp.hidden = !S.penalty;
+    const ps = S.penalty / 1000;
+    const pText = ps >= 60 ? `${Math.floor(ps / 60)}분${ps % 60 ? ` ${ps % 60}초` : ''}` : `${ps}초`;
+    wp.textContent = `추가 힌트 ${S.penalty / PENALTY_MS}회로 ${pText}가 더해진 시간이에요.`;
+    const cleared = countSt(t, 'cleared');
+    $('win-progress').textContent = next <= STAGES
+      ? `오늘 ${cleared}/10단계 통과! 다음은 ${next}단계예요.`
+      : '오늘의 10단계를 모두 끝냈어요! 내일 새 문제가 나와요.';
+    const nb = $('win-next');
+    nb.hidden = next > STAGES;
+    nb.textContent = `${next}단계 도전`;
+    nb.dataset.stage = next;
+    openDialog('win-dialog');
+    startConfetti();
+  }
+  $('win-close').addEventListener('click', closeDialog);
+  $('win-next').addEventListener('click', () => {
+    const s = +$('win-next').dataset.stage;
+    closeDialog();
+    openStage(S.n, S.diff, s);
+  });
+
+  let confettiRaf = 0;
+  function startConfetti() {
+    if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    const cv = els.confetti, ctx = cv.getContext('2d');
+    const dpr = window.devicePixelRatio || 1;
+    const W = cv.clientWidth, H = cv.clientHeight;
+    cv.width = W * dpr; cv.height = H * dpr;
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    const colors = ['#2563d9', '#ffcf33', '#12805f', '#cf3535', '#7c45d0', '#f08a24'];
+    const parts = Array.from({ length: 170 }, () => ({
+      x: W / 2 + (Math.random() - .5) * W * .3, y: H * .35 + (Math.random() - .5) * 40,
+      vx: (Math.random() - .5) * 14, vy: -Math.random() * 13 - 4,
+      w: 6 + Math.random() * 6, h: 8 + Math.random() * 8,
+      r: Math.random() * Math.PI, vr: (Math.random() - .5) * .3,
+      c: colors[Math.floor(Math.random() * colors.length)]
+    }));
+    const t0 = performance.now();
+    cancelAnimationFrame(confettiRaf);
+    const frame = (now) => {
+      const age = now - t0;
+      ctx.clearRect(0, 0, W, H);
+      for (const p of parts) {
+        p.vy += .32; p.vx *= .99; p.x += p.vx; p.y += p.vy; p.r += p.vr;
+        ctx.save();
+        ctx.globalAlpha = Math.max(0, 1 - age / 4200);
+        ctx.translate(p.x, p.y); ctx.rotate(p.r);
+        ctx.fillStyle = p.c;
+        ctx.fillRect(-p.w / 2, -p.h / 2, p.w, p.h * Math.abs(Math.cos(p.r * 2)) + 2);
+        ctx.restore();
+      }
+      if (age < 4200) confettiRaf = requestAnimationFrame(frame);
+      else ctx.clearRect(0, 0, W, H);
+    };
+    confettiRaf = requestAnimationFrame(frame);
+  }
+  function stopConfetti() {
+    cancelAnimationFrame(confettiRaf);
+    const ctx = els.confetti.getContext('2d');
+    ctx.clearRect(0, 0, els.confetti.width, els.confetti.height);
+  }
+
+  // ================= 문제지·정답지 =================
+  const LAYOUT = {
+    9: { orient: 'landscape', w: 297, h: 210, board: 120, font: 20, gapC: 22, gapR: 0 },
+    6: { orient: 'portrait', w: 210, h: 297, board: 82, font: 21, gapC: 14, gapR: 12 },
+    4: { orient: 'portrait', w: 210, h: 297, board: 64, font: 25, gapC: 18, gapR: 9 }
+  };
+
+  function worksheetCss(n) {
+    const L = LAYOUT[n];
+    return `
+@page { size: A4 ${L.orient}; margin: 0; }
+.ws-root { font-family: 'Noto Sans KR', 'Malgun Gothic', 'Apple SD Gothic Neo', sans-serif; color: #1d2742; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+.ws-page { width: ${L.w}mm; height: ${L.h}mm; padding: 12mm 14mm; box-sizing: border-box; display: flex; flex-direction: column; gap: 3mm; background: #fff; overflow: hidden; break-after: page; page-break-after: always; }
+.ws-page:last-child { break-after: auto; page-break-after: auto; }
+.ws-head { display: flex; justify-content: space-between; align-items: flex-end; gap: 6mm; border-bottom: 0.7mm solid #1d2742; padding-bottom: 2mm; }
+.ws-title { margin: 0; font-size: 19pt; font-weight: 900; line-height: 1.2; letter-spacing: 0.2mm; white-space: nowrap; }
+.ws-title small { display: block; margin-top: 0.8mm; font-size: 10pt; font-weight: 500; line-height: 1.2; color: #5d6a82; letter-spacing: 0; }
+.ws-info { display: flex; gap: 4mm; font-size: 11pt; white-space: nowrap; align-items: flex-end; }
+.ws-info i { display: inline-block; width: 11mm; height: 5mm; border-bottom: 0.3mm solid #1d2742; margin-right: 1mm; }
+.ws-info .ws-name i { width: 30mm; margin: 0 0 0 1.5mm; }
+.ws-rule { margin: 0; font-size: 9.5pt; color: #5d6a82; }
+.ws-grid { flex: 1; display: grid; grid-template-columns: repeat(2, ${L.board}mm); justify-content: center; align-content: center; column-gap: ${L.gapC}mm; row-gap: ${L.gapR}mm; }
+.ws-item { margin: 0; display: flex; flex-direction: column; gap: 1.5mm; break-inside: avoid; }
+.ws-item figcaption { font-size: 10pt; font-weight: 700; color: #5d6a82; }
+.ws-board { width: ${L.board}mm; height: ${L.board}mm; display: grid; grid-template-columns: repeat(${n}, 1fr); grid-template-rows: repeat(${n}, 1fr); border: 0.8mm solid #1d2742; box-sizing: border-box; background: #fff; }
+.ws-c { display: flex; align-items: center; justify-content: center; border-right: 0.2mm solid #a3b0c4; border-bottom: 0.2mm solid #a3b0c4; box-sizing: border-box; font-size: ${L.font}pt; font-weight: 700; line-height: 1; }
+.ws-c.br { border-right: 0.6mm solid #1d2742; }
+.ws-c.bb { border-bottom: 0.6mm solid #1d2742; }
+.ws-c.er { border-right: 0; }
+.ws-c.eb { border-bottom: 0; }
+.ws-c.g { background: #e9eef5; }
+.ws-c.a { color: #cf3535; }
+`;
+  }
+
+  function printOpts() {
+    const kindEl = document.querySelector('input[name="print-kind"]:checked');
+    return {
+      n: S.n, diff: S.diff,
+      kind: kindEl ? kindEl.value : 'daily',
+      pages: Math.min(5, Math.max(1, parseInt($('print-pages').value, 10) || 1)),
+      info: $('print-info').checked,
+      answers: $('print-answers').checked
+    };
+  }
+
+  function worksheetParts(o) {
+    const { n, diff } = o;
+    const G = E.geometry(n);
+    const per = PER_PAGE[n];
+    const label = DIFF_LABEL[diff];
+    const items = [];
+    if (o.kind === 'daily') {
+      for (let s = 1; s <= STAGES; s++) items.push(Object.assign({ cap: `${s}단계` }, E.daily(daily.day, n, diff, s)));
+    } else {
+      const target = E.stageTarget(n, diff, 5);
+      for (let k = 0; k < o.pages * per; k++) items.push(Object.assign({ cap: `문제 ${k + 1}` }, E.generate(n, target)));
+    }
+    const pages = Math.ceil(items.length / per);
+    const sub = o.kind === 'daily'
+      ? `${dayShort(daily.day)} 오늘의 문제 · ${n}×${n} · 난이도 ${label}`
+      : `연습 문제 · ${n}×${n} · 난이도 ${label}`;
+
+    const boardHtml = (it, showAns) => {
+      let h = '<div class="ws-board">';
+      for (let i = 0; i < G.N; i++) {
+        const r = G.row[i], c = G.col[i];
+        const cls = ['ws-c'];
+        if (c === n - 1) cls.push('er'); else if ((c + 1) % G.bc === 0) cls.push('br');
+        if (r === n - 1) cls.push('eb'); else if ((r + 1) % G.br === 0) cls.push('bb');
+        let txt = '';
+        if (it.puzzle[i]) { cls.push('g'); txt = it.puzzle[i]; }
+        else if (showAns) { cls.push('a'); txt = it.solution[i]; }
+        h += `<div class="${cls.join(' ')}">${txt}</div>`;
+      }
+      return h + '</div>';
+    };
+    const pageTag = (p) => (pages > 1 ? ` · ${p + 1}/${pages}쪽` : '');
+    const infoHtml = o.info
+      ? '<div class="ws-info"><span><i></i>학년</span><span><i></i>반</span><span><i></i>번</span><span class="ws-name">이름<i></i></span></div>'
+      : '';
+
+    let body = '';
+    for (let p = 0; p < pages; p++) {
+      body += `<section class="ws-page"><header class="ws-head"><h1 class="ws-title">스도쿠 문제지<small>${sub}${pageTag(p)}</small></h1>${infoHtml}</header>`;
+      body += `<p class="ws-rule">규칙: 가로줄, 세로줄, 굵은 선으로 나뉜 상자마다 1부터 ${n}까지의 숫자가 한 번씩만 들어가요.</p><div class="ws-grid">`;
+      for (const it of items.slice(p * per, p * per + per)) body += `<figure class="ws-item"><figcaption>${it.cap}</figcaption>${boardHtml(it, false)}</figure>`;
+      body += '</div></section>';
+    }
+    if (o.answers) {
+      for (let p = 0; p < pages; p++) {
+        body += `<section class="ws-page"><header class="ws-head"><h1 class="ws-title">스도쿠 정답지<small>${sub}${pageTag(p)}</small></h1></header>`;
+        body += '<p class="ws-rule">빨간 숫자가 학생이 채워야 하는 칸의 정답이에요.</p><div class="ws-grid">';
+        for (const it of items.slice(p * per, p * per + per)) body += `<figure class="ws-item"><figcaption>${it.cap} 정답</figcaption>${boardHtml(it, true)}</figure>`;
+        body += '</div></section>';
+      }
+    }
+    const { m, d } = dayParts(daily.day);
+    const mmdd = `${String(m).padStart(2, '0')}${String(d).padStart(2, '0')}`;
+    return {
+      body, pages,
+      css: worksheetCss(n),
+      title: o.kind === 'daily' ? `스도쿠 ${dayShort(daily.day)} ${n}x${n} 난이도 ${label}` : `스도쿠 연습 ${n}x${n} 난이도 ${label}`,
+      filename: o.kind === 'daily' ? `스도쿠_${mmdd}_${n}x${n}_난이도${label}_1-10단계.html` : `스도쿠_연습_${n}x${n}_난이도${label}.html`
+    };
+  }
+
+  function worksheetFile(parts) {
+    return `<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>${parts.title}</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700;900&display=swap" rel="stylesheet">
+<style>
+${parts.css}
+body { margin: 0; background: #dfe4ec; }
+.ws-bar { position: sticky; top: 0; z-index: 2; display: flex; flex-wrap: wrap; gap: 10px 14px; align-items: center; justify-content: center; padding: 10px 16px; background: #1d2742; color: #fff; font: 500 14px 'Noto Sans KR', 'Malgun Gothic', sans-serif; }
+.ws-bar button { font: 700 14px 'Noto Sans KR', 'Malgun Gothic', sans-serif; padding: 8px 16px; border-radius: 8px; border: 0; background: #ffcf33; color: #1d2742; cursor: pointer; }
+.ws-root { display: flex; flex-direction: column; align-items: center; gap: 8mm; padding: 8mm 0; }
+.ws-page { box-shadow: 0 2px 14px rgba(0, 0, 0, .18); }
+@media print {
+  body { background: #fff; }
+  .ws-bar { display: none; }
+  .ws-root { display: block; padding: 0; }
+  .ws-page { box-shadow: none; }
+}
+</style>
+</head>
+<body>
+<div class="ws-bar"><span>인쇄 창에서 대상을 'PDF로 저장'으로 고르면 PDF 파일로도 저장할 수 있어요.</span><button type="button" onclick="window.print()">인쇄하기</button></div>
+<div class="ws-root">${parts.body}</div>
+<script>
+window.addEventListener('load', function () {
+  var go = function () { setTimeout(function () { window.print(); }, 250); };
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(go, go); else go();
+});
+<\/script>
+</body>
+</html>`;
+  }
+
+  function printInPage(parts) {
+    const root = $('print-root');
+    root.innerHTML = `<div class="ws-root">${parts.body}</div>`;
+    $('print-style').textContent = parts.css;
+    document.body.classList.add('printing');
+    const done = () => {
+      document.body.classList.remove('printing');
+      root.innerHTML = '';
+      window.removeEventListener('afterprint', done);
+    };
+    window.addEventListener('afterprint', done);
+    setTimeout(() => {
+      try { window.print(); } catch (e) { done(); }
+      setTimeout(() => { if (document.body.classList.contains('printing')) done(); }, 1500);
+    }, 80);
+  }
+
+  // 아티팩트 화면에서는 인쇄 창 대신 인쇄용 파일을 내려받는다
+  const inHost = () => !!(window.claude && typeof window.claude.use === 'function');
+  // exe(데스크톱 앱)에서는 PDF로 저장한다
+  const isDesktop = () => !!(window.desktop && typeof window.desktop.savePdf === 'function');
+  async function savePdfDesktop(parts) {
+    const root = $('print-root');
+    root.innerHTML = `<div class="ws-root">${parts.body}</div>`;
+    $('print-style').textContent = parts.css;
+    document.body.classList.add('printing');
+    try {
+      if (document.fonts && document.fonts.ready) await document.fonts.ready;
+      return await window.desktop.savePdf(parts.filename.replace(/\.html$/, '.pdf'));
+    } finally {
+      document.body.classList.remove('printing');
+      root.innerHTML = '';
+    }
+  }
+  let downloadsNs = null;
+  async function getDownloads() {
+    if (downloadsNs) return downloadsNs;
+    if (!inHost()) return null;
+    try { downloadsNs = await window.claude.use('downloads'); } catch (e) { downloadsNs = null; }
+    return downloadsNs;
+  }
+
+  function updatePrintSummary() {
+    const o = printOpts(), L = LAYOUT[o.n], per = PER_PAGE[o.n];
+    const practice = o.kind === 'practice';
+    $('print-pages').disabled = !practice;
+    $('pages-row').classList.toggle('is-off', !practice);
+    const pages = practice ? o.pages : Math.ceil(STAGES / per);
+    const what = practice ? `새 연습 문제 ${o.pages * per}개` : `${dayShort(daily.day)} 1~10단계 문제`;
+    $('print-summary').textContent =
+      `${o.n}×${o.n} · 난이도 ${DIFF_LABEL[o.diff]} · ${what} → A4 ${L.orient === 'landscape' ? '가로' : '세로'} 문제지 ${pages}장${o.answers ? ` + 정답지 ${pages}장` : ''}`;
+  }
+
+  function openPrint() {
+    if (!S || modalOpen) return;
+    (prefs.printKind === 'practice' ? $('pk-practice') : $('pk-daily')).checked = true;
+    $('print-pages').value = String(prefs.printPages);
+    $('print-info').checked = prefs.printInfo;
+    $('print-answers').checked = prefs.printAnswers;
+    const host = inHost();
+    if (isDesktop()) {
+      $('print-go').textContent = 'PDF로 저장';
+      $('print-note').textContent = '저장한 PDF가 바로 열려요. 열린 PDF 창에서 인쇄하면 돼요.';
+    } else {
+      $('print-go').textContent = host ? '인쇄용 파일 받기' : '인쇄하기';
+      $('print-note').textContent = host
+        ? '받은 파일(HTML)을 열면 인쇄 창이 바로 떠요. 인쇄 창에서 대상을 \'PDF로 저장\'으로 고르면 PDF로도 저장돼요.'
+        : '인쇄 창에서 대상을 \'PDF로 저장\'으로 고르면 PDF 파일로도 저장할 수 있어요.';
+    }
+    updatePrintSummary();
+    openDialog('print-dialog');
+  }
+  ['pk-daily', 'pk-practice', 'print-pages', 'print-info', 'print-answers'].forEach(id => $(id).addEventListener('change', updatePrintSummary));
+  $('print-cancel').addEventListener('click', closeDialog);
+
+  async function doPrint() {
+    const o = printOpts();
+    Object.assign(prefs, { printKind: o.kind, printPages: o.pages, printInfo: o.info, printAnswers: o.answers });
+    savePrefs();
+    const btn = $('print-go');
+    const label = btn.textContent;
+    btn.disabled = true;
+    btn.textContent = '만드는 중…';
+    const parts = worksheetParts(o);
+    if (isDesktop()) {
+      btn.textContent = 'PDF 만드는 중…';
+      try {
+        const r = await savePdfDesktop(parts);
+        if (r && r.ok) { closeDialog(); say('PDF를 저장하고 열었어요. 열린 PDF 창에서 인쇄하면 돼요.', 'ok', 7000); }
+        else if (r && r.canceled) say('PDF 저장을 취소했어요.');
+        else say('PDF를 만들지 못했어요. 다시 눌러 주세요.', 'warn');
+      } catch (err) {
+        say('PDF를 만들지 못했어요. 다시 눌러 주세요.', 'warn');
+      }
+    } else if (inHost()) {
+      const dl = await getDownloads();
+      if (dl) {
+        btn.textContent = '저장 확인 기다리는 중…';
+        try {
+          await dl.save({ filename: parts.filename, data: worksheetFile(parts) });
+          closeDialog();
+          say('인쇄용 파일을 저장했어요. 파일을 열면 인쇄 창이 바로 떠요.', 'ok', 6000);
+        } catch (err) {
+          const code = err && err.code;
+          if (code === 'declined') say('파일 저장을 취소했어요.');
+          else if (code === 'rate_limited') say('저장 창이 이미 열려 있어요. 잠시 뒤 다시 눌러 주세요.', 'warn');
+          else say('이 화면에서는 파일을 저장할 수 없어요.', 'warn');
+        }
+      } else {
+        closeDialog();
+        printInPage(parts);
+        say('인쇄 창이 열리지 않으면 이 앱을 HTML 파일로 받아 브라우저에서 열어 주세요.', 'warn', 7000);
+      }
+    } else {
+      closeDialog();
+      printInPage(parts);
+    }
+    btn.disabled = false;
+    btn.textContent = label;
+  }
+  $('print-go').addEventListener('click', doPrint);
+
+  // ================= 테마 =================
+  function isDark() {
+    const t = document.documentElement.getAttribute('data-theme');
+    if (t === 'dark' || t === 'light') return t === 'dark';
+    return !!(window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches);
+  }
+  function syncThemeBtn() {
+    const dark = isDark();
+    els.themeBtn.setAttribute('aria-pressed', String(dark));
+    els.themeLabel.textContent = dark ? '밝은 모드' : '다크 모드';
+    els.themeIcon.setAttribute('d', dark ? ICON_SUN : ICON_MOON);
+  }
+  els.themeBtn.addEventListener('click', () => {
+    prefs.theme = isDark() ? 'light' : 'dark';
+    savePrefs();
+    document.documentElement.setAttribute('data-theme', prefs.theme);
+    syncThemeBtn();
+  });
+  if (prefs.theme === 'dark' || prefs.theme === 'light') document.documentElement.setAttribute('data-theme', prefs.theme);
+  if (window.matchMedia) {
+    const mq = window.matchMedia('(prefers-color-scheme: dark)');
+    if (mq.addEventListener) mq.addEventListener('change', syncThemeBtn);
+  }
+  if ('MutationObserver' in window) {
+    new MutationObserver(syncThemeBtn).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+  }
+
+  // ================= 이벤트 연결 =================
+  els.board.addEventListener('pointerdown', (e) => {
+    const c = e.target.closest('.cell');
+    if (!c) return;
+    e.preventDefault();
+    select(+c.dataset.i);
+    els.board.focus({ preventScroll: true });
+  });
+  els.board.addEventListener('focus', () => {
+    if (S && !S.solved && S.selected < 0) { S.selected = S.values.findIndex(v => v === 0); paint(); }
+  });
+
+  els.sizeSeg.addEventListener('click', (e) => {
+    const b = e.target.closest('button[data-n]');
+    if (!b || !S || modalOpen) return;
+    const n = +b.dataset.n;
+    if (n !== S.n) switchTrack(n, S.diff);
+  });
+  els.diffSeg.addEventListener('click', (e) => {
+    const b = e.target.closest('button[data-diff]');
+    if (!b || !S || modalOpen) return;
+    if (b.dataset.diff !== S.diff) switchTrack(S.n, b.dataset.diff);
+  });
+  els.restartBtn.addEventListener('click', restartStage);
+  els.printBtn.addEventListener('click', openPrint);
+  els.eraseBtn.addEventListener('click', erase);
+  els.memoBtn.addEventListener('click', toggleMemo);
+  els.undoBtn.addEventListener('click', undo);
+  els.hintBtn.addEventListener('click', giveHint);
+  els.checkBtn.addEventListener('click', checkAnswers);
+  els.peekBtn.addEventListener('click', requestPeek);
+  $('peek-resume').addEventListener('click', endPeek);
+  $('peek-skip').addEventListener('click', skipStage);
+  els.submitBtn.addEventListener('click', submit);
+  els.pauseBtn.addEventListener('click', () => S && setPaused(!S.paused));
+  els.resumeBtn.addEventListener('click', () => setPaused(false));
+
+  document.addEventListener('keydown', (e) => {
+    if (modalOpen) {
+      if (e.key === 'Escape') { e.preventDefault(); cancelDialog(); }
+      return;
+    }
+    if (!S) return;
+    if (S.peeking && e.key === 'Escape') { e.preventDefault(); endPeek(); return; }
+    const tag = e.target && e.target.tagName;
+    if (tag === 'INPUT' || tag === 'SELECT' || tag === 'TEXTAREA') return;
+    const k = e.key;
+    if ((e.ctrlKey || e.metaKey) && (k === 'z' || k === 'Z' || k === 'ㅋ')) { e.preventDefault(); undo(); return; }
+    if (e.ctrlKey || e.metaKey || e.altKey) return;
+    if (/^[1-9]$/.test(k)) {
+      if (+k <= S.n) { e.preventDefault(); inputDigit(+k); }
+      return;
+    }
+    switch (k) {
+      case 'ArrowUp': e.preventDefault(); move(-1, 0); break;
+      case 'ArrowDown': e.preventDefault(); move(1, 0); break;
+      case 'ArrowLeft': e.preventDefault(); move(0, -1); break;
+      case 'ArrowRight': e.preventDefault(); move(0, 1); break;
+      case 'Backspace': case 'Delete': case '0': e.preventDefault(); erase(); break;
+      case 'm': case 'M': case 'ㅡ': toggleMemo(); break;
+      default: break;
+    }
+  });
+
+  // ================= 시작 =================
+  syncThemeBtn();
+  {
+    const { n, diff } = daily.sel;
+    const t = track(n, diff);
+    const cur = currentStage(t);
+    const resumed = !!t.games[Math.min(cur, STAGES)];
+    openStage(n, diff, Math.min(cur, STAGES));
+    if (cur > STAGES) say('오늘의 10단계를 모두 마쳤어요! 내일 새 문제가 나와요.', 'ok', 6000);
+    else if (resumed) say(`풀던 ${cur}단계를 이어서 풀어요.`, 'note', 4500);
+    else say(`${dayLabel(daily.day)} 오늘의 문제예요. ${cur}단계부터 시작해요.`, 'note', 5000);
+  }
+  getDownloads();
+})();
+</script>
+</body>
+</html>
